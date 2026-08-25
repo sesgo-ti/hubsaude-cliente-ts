@@ -1,0 +1,52 @@
+{
+  "name": "hubsaude-cliente-js",
+  "version": "0.1.0",
+  "description": "Cliente TypeScript/Node.js para obtenção de tokens de acesso ao HubSaúde via SMART Backend Services (SMART-on-FHIR). Consumível também por JavaScript puro.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "keywords": [
+    "hubsaude",
+    "smart-on-fhir",
+    "smart-backend-services",
+    "fhir",
+    "oauth2",
+    "jwt",
+    "client-credentials",
+    "mtls"
+  ],
+  "license": "Apache-2.0",
+  "author": "Estado de Goiás (SES-GO) e Universidade Federal de Goiás (UFG)",
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/node-forge": "^1.3.14",
+    "@vitest/coverage-v8": "^4.1.11",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
+  },
+  "dependencies": {
+    "node-forge": "^1.4.0"
+  }
+}

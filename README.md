@@ -1,0 +1,398 @@
+# hubsaude-cliente-js
+
+[![Version](https://img.shields.io/badge/Version-0.1.0-yellow)](CHANGELOG.md)
+[![Node.js 20+](https://img.shields.io/badge/Node.js-20%2B-339933)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-7.x-3178C6)](https://www.typescriptlang.org/)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
+
+Cliente TypeScript/Node.js (consumível também por JavaScript puro) para
+obtenção de tokens de acesso ao HubSaúde via
+[SMART Backend Services](https://hl7.org/fhir/smart-app-launch/backend-services.html)
+(SMART-on-FHIR). Encapsula a montagem do JWT *client assertion*, sua
+assinatura e a troca pelo *access token* no endpoint OAuth 2.0.
+
+O contrato comportamental está em [`ESPECIFICACAO.md`](ESPECIFICACAO.md)
+— requisitos normativos compartilhados pelo portfólio oficial de SDKs:
+Java, TypeScript/Node.js, C#/.NET e Python.
+
+## Instalação
+
+```bash
+npm install hubsaude-cliente-js
+```
+
+`0.1.0` é uma versão de desenvolvimento — a série `0.x` é provisória (ver
+seção abaixo) e o pacote ainda não foi publicado no registro npm público.
+Até a primeira publicação, instale a partir de um tarball gerado por
+`npm pack` neste repositório, ou aponte para o Git diretamente.
+
+## Política da API pública
+
+Enquanto a biblioteca estiver na série `0.x`, sua API é provisória:
+versões `MINOR` podem introduzir mudanças incompatíveis e versões `PATCH`
+preservam compatibilidade. A partir de `1.0.0`, a evolução seguirá
+estritamente o
+[Versionamento Semântico 2.0.0](https://semver.org/lang/pt-BR/).
+
+Todos os tipos e funções reexportados pelo ponto de entrada do pacote
+(`import ... from "hubsaude-cliente-js"`, ver o campo `exports` do
+`package.json`) integram a API pública. Qualquer caminho de import mais
+profundo (ex.: `hubsaude-cliente-js/dist/token/TokenCacheStrategy.js`) é
+bloqueado pelo próprio Node em runtime — não é só uma convenção de
+organização de pastas. A criação de `SmartTokenClient` é feita
+**exclusivamente** por `createSmartTokenClient(options)`; a classe não
+tem construtor público, reforçado tanto em tempo de compilação quanto em
+runtime.
+
+## Uso básico
+
+```ts
+import { createSmartTokenClient } from "hubsaude-cliente-js";
+
+const client = await createSmartTokenClient({
+  tokenEndpoint: "https://hub.saude.go.gov.br/auth/token",
+  clientId: "meu-sistema",
+  privateKeyPem: "chave-privada.pem",
+  certificatePem: "certificado.pem",
+});
+
+const token = await client.obtainToken("system/Patient.rs");
+```
+
+A instância é reutilizável e segura para chamadas concorrentes (Node
+roda em um único *event loop*, então não há condição de corrida entre
+threads do sistema operacional a evitar aqui). Mantém cache do token por
+scope, renovado conforme margem de expiração configurável, e executa
+*retries* com *backoff* exponencial em falha transitória de rede.
+Reutilize a mesma instância pelo ciclo de vida da aplicação e chame
+`close()` uma única vez no encerramento.
+
+## Ciclo de vida, cache e erros
+
+`close()` é idempotente, aguarda operações em voo, encerra a conexão
+HTTP interna e invalida todo o cache. Após o fechamento, novas
+obtenções de token falham explicitamente. Em aplicações *long-lived*,
+feche a instância no desligamento do processo (ex.: handler de
+`SIGTERM`); em CLIs, jobs curtos e testes, prefira
+`await using client = await createSmartTokenClient(...)` — o
+gerenciamento de recursos nativo do JS/TS moderno, que fecha
+automaticamente ao sair do escopo.
+
+As operações de token podem propagar:
+
+| Tipo | Situação |
+|------|----------|
+| Erro nativo do `node:http`/`node:https` (ex.: `Error` com `code: "ECONNRESET"`) | Falha de rede não recuperada pelos *retries* internos — propagado sem reembrulhar |
+| `SmartTokenError` | Configuração criptográfica inválida, resposta HTTP/JSON inválida, algoritmo não suportado, ou rejeição confirmada do certificado de cliente pelo servidor (RF-08.1 — ver seção de mTLS) |
+| `SigningError` | Falha da estratégia criptográfica ao assinar o `client_assertion` |
+| `RangeError` | Valor fora do intervalo aceito (chave fraca, `hub_ctx` malformado, `tokenCacheMaxEntries` não positivo) |
+| `Error` | Precondição de configuração/estado violada (ex.: opções mutuamente exclusivas informadas juntas, cliente já fechado) |
+
+Node não tem um equivalente a interromper uma thread em espera; se você
+cancelar a operação externamente (ex.: envolvendo a chamada com seu
+próprio timeout), a rejeição se propaga normalmente pelo `await`.
+
+Após receber `401` ao usar um token em um endpoint FHIR, invalide a
+entrada antes de obter um novo token:
+
+```ts
+client.invalidateCache("system/Patient.rs");
+const renewedToken = await client.obtainToken("system/Patient.rs");
+```
+
+Não repita indefinidamente após um novo `401`: trate a recorrência como
+falha de credencial, consentimento ou autorização. Consulte o
+[guia de integração enterprise](docs/integracao-enterprise.md) para
+lifecycle, circuit breaker, métricas e observabilidade.
+
+## Fontes de chave (`SigningStrategy`)
+
+A escolha de *onde* a chave privada reside é a decisão arquitetural
+mais relevante para uma integração de produção:
+
+| Fonte | Quando usar | Exposição da chave |
+|-------|-------------|--------------------|
+| PEM (PKCS#8) | Prototipação e testes | Arquivo em claro no disco |
+| PEM com senha | Mitigação adicional quando PEM é inevitável | Cifrada em disco; senha em runtime |
+| PKCS#12 direto | **Recomendado para produção** com chaves em software | Decodificada em memória do processo a cada uso; não persiste em disco |
+| HSM via PKCS#11 | Produção com chave não-exportável | Nunca sai do hardware — via `SigningStrategy` própria, não embutida no SDK |
+| Cofre (ex.: OpenBao) | Chave provisionada por cofre central | Buscada em runtime; nunca em disco |
+
+### Tamanho mínimo de chave
+
+Chaves fracas são rejeitadas no carregamento e na construção da
+estratégia de assinatura (fail-fast, `RangeError`), conforme NIST SP
+800-57:
+
+| Algoritmo | Mínimo aceito |
+|-----------|---------------|
+| RSA | 2048 bits (módulo) |
+| EC | P-256 (campo de 256 bits) |
+
+Chaves fornecidas por uma `SigningStrategy` própria (HSM, cofre) não
+passam por esta validação — a política de tamanho fica a cargo da fonte.
+
+### PKCS#12 direto
+
+```ts
+import { readFile } from "node:fs/promises";
+import { createSmartTokenClient, fromPkcs12 } from "hubsaude-cliente-js";
+
+const pfx = await readFile("certificado.pfx");
+
+const client = await createSmartTokenClient({
+  tokenEndpoint: "https://hub.saude.go.gov.br/auth/token",
+  clientId: "meu-sistema",
+  signingStrategy: fromPkcs12(pfx, "senha-pfx"),
+  // mTLS com o mesmo contêiner PKCS#12 (opcional)
+  clientPfx: pfx,
+  clientPfxPassphrase: "senha-pfx",
+});
+```
+
+### HSM via PKCS#11
+
+O Node não tem suporte nativo a PKCS#11 (diferente do JDK, que embute o
+provider `SunPKCS11`), então este SDK não oferece um `fromPkcs11`
+pronto. Forneça sua própria `SigningStrategy` assíncrona, delegando a
+operação ao dispositivo por qualquer via — `pkcs11js` na sua aplicação,
+um sidecar dedicado, ou uma API de KMS em nuvem:
+
+```ts
+import { createSmartTokenClient, type SigningStrategy } from "hubsaude-cliente-js";
+
+const signingStrategy: SigningStrategy = async (data) => {
+  // abra a sessão PKCS#11, localize a chave pelo alias/label configurado
+  // no seu HSM, assine `data` no hardware e devolva a assinatura bruta
+  return assinaturaDoHsm;
+};
+
+const client = await createSmartTokenClient({
+  tokenEndpoint: "https://hub.saude.go.gov.br/auth/token",
+  clientId: "meu-sistema",
+  signingStrategy,
+});
+```
+
+### Cofre / chave já carregada
+
+```ts
+import { createPrivateKey } from "node:crypto";
+import { createSmartTokenClient, fromPrivateKey } from "hubsaude-cliente-js";
+
+const pem = await baoClient.getPrivateKey("secret/data/hubsaude/key");
+const signingStrategy = fromPrivateKey(createPrivateKey(pem));
+
+const client = await createSmartTokenClient({
+  tokenEndpoint: "https://hub.saude.go.gov.br/auth/token",
+  clientId: "meu-sistema",
+  signingStrategy,
+});
+```
+
+`fromPrivateKey` sem opções assina com RSA PKCS#1 v1.5 + SHA-384
+(compatível com o algoritmo padrão do cliente, RS384). Se o servidor
+exigir outro algoritmo, use `fromPrivateKeyForJwt(key, jwtAlgorithm)` e
+informe o mesmo valor em `jwtAlgorithm` nas opções do cliente.
+
+### PEM com senha
+
+```ts
+const client = await createSmartTokenClient({
+  tokenEndpoint: "https://hub.saude.go.gov.br/auth/token",
+  clientId: "meu-sistema",
+  privateKeyPem: "chave-encrypted.pem",
+  privateKeyPassword: Buffer.from("minha-senha"),
+});
+```
+
+## Configuração avançada
+
+```ts
+const client = await createSmartTokenClient({
+  tokenEndpoint: "https://hub.saude.go.gov.br/auth/token",
+  clientId: "meu-sistema",
+  privateKeyPem: "chave-privada.pem",
+  certificatePem: "certificado.pem",
+  serverTrustAnchor: "ca-custom.pem",  // simulador/homologação
+  tlsProtocol: "TLSv1.2",              // padrão: "TLSv1.3"
+  connectTimeoutMs: 10_000,
+  requestTimeoutMs: 30_000,
+  assertionTtlSeconds: 120,            // TTL do JWT
+  enableTokenCache: true,
+  tokenCacheMarginSeconds: 30,         // margem de renovação
+  tokenCacheMaxEntries: 1_000,         // teto LRU por scope
+  maxRetries: 3,
+  jwtAlgorithm: "RS384",               // padrão: RS384 (HubSaúde aceita RS384/ES384)
+  keyId: "minha-chave-2026",           // kid no header do JWT (opcional)
+  hubContext: { ig: "hemograma", versao: "0.0.1" }, // claim hub_ctx
+});
+```
+
+O endpoint deve usar `https`; o esquema `http` é aceito apenas para
+`localhost`/`127.0.0.1` (desenvolvimento e testes locais).
+
+Valores não positivos em `assertionTtlSeconds`, `maxRetries` e
+`tokenCacheMarginSeconds` são substituídos pelos padrões de 60 s, 3
+tentativas totais e 30 s, respectivamente. `tokenCacheMaxEntries` deve
+ser positivo; valor inválido faz `createSmartTokenClient` rejeitar a
+`Promise` com `RangeError`.
+
+### Contexto de Guia de Implementação (`hub_ctx`)
+
+O claim proprietário `hub_ctx` declara o Guia de Implementação (IG) e a
+versão pretendidos na sessão (concern `client-assertion-contexto-ig.md`
+§3.4). Configure com `hubContext: { ig, versao }`: o `ig` usa
+minúsculas, dígitos e hífen (ex.: `"hemograma"`) e a `versao` é SemVer
+completo `MAJOR.MINOR.PATCH` (ex.: `"0.0.1"`). Quando não configurado, o
+claim é omitido — servidores que o exigem rejeitarão o assertion.
+
+### Identificador de chave (`kid`)
+
+Quando o servidor de autorização publica múltiplas chaves (JWKS), use
+`keyId: "..."` para incluir o header `kid` no *client assertion*,
+permitindo que o servidor selecione a chave pública correta para
+validar a assinatura. Se não configurado, o header contém apenas `alg`
+e `typ`.
+
+### Descoberta automática do endpoint
+
+Em vez de fixar `tokenEndpoint`, informe a base FHIR — o cliente
+resolve via `.well-known/smart-configuration`:
+
+```ts
+fhirBase: "https://hub.saude.go.gov.br"
+```
+
+### `serverTrustAnchor` — quando usar
+
+Em produção o HubSaúde usa CA já presente no trust store padrão do
+Node. Use `serverTrustAnchor` apenas em testes locais com o simulador,
+homologação com CA interna, ou desenvolvimento com certificados ad hoc.
+
+## Preparação de certificados PFX/P12 → PEM
+
+Útil quando a chave precisa ser materializada em PEM. Se você usa
+PKCS#12 direto ou HSM, ignore esta seção.
+
+```bash
+# Chave privada (atenção: -nodes salva em claro)
+openssl pkcs12 -in certificado.pfx -nocerts -nodes -out chave-privada.pem
+
+# Certificado público
+openssl pkcs12 -in certificado.pfx -clcerts -nokeys -out certificado.pem
+
+# (Opcional) Forçar PKCS#8
+openssl pkcs8 -topk8 -nocrypt -in chave-privada.pem -out chave-pkcs8.pem
+
+# (Opcional) Cifrar a chave em AES-256
+openssl pkcs8 -topk8 -v2 aes-256-cbc -in chave-privada.pem -out chave-encrypted.pem
+```
+
+## Resiliência em produção
+
+A biblioteca já cobre cache de token + *retries* com *backoff*. Para
+proteção adicional contra falhas prolongadas do servidor de
+autorização, combine com um *circuit breaker* externo na camada de
+orquestração (ex.: `opossum`, `cockatiel`, ou o do seu API
+gateway/service mesh) — o SDK não embute nenhum. O
+[guia de integração enterprise](docs/integracao-enterprise.md) descreve
+ownership, composição de resiliência e métricas sem acoplar o SDK a um
+framework.
+
+## Correlação e observabilidade (`traceparent`)
+
+O HubSaúde ignora headers como `X-Correlation-Id` enviados pelo
+cliente: a correlação é derivada **exclusivamente** do contexto de
+trace W3C ([W3C Trace Context](https://www.w3.org/TR/trace-context/)).
+Por isso, toda requisição HTTP desta biblioteca (token endpoint e
+descoberta via `.well-known/smart-configuration`) envia o header
+`traceparent` no formato `00-<trace-id>-<parent-id>-00`, com trace-id
+(16 bytes) e span-id (8 bytes) gerados criptograficamente
+(`node:crypto.randomBytes`) **por requisição** — cada retry carrega um
+par novo. Não há dependência de nenhum SDK OpenTelemetry.
+
+A flag `sampled` é `00` (*not sampled*), coerente com a semântica do
+W3C Trace Context §3.2.2.5.1: a biblioteca não grava spans.
+
+**Como usar com o suporte**: em falhas, o trace-id enviado aparece nas
+mensagens de erro/retry da biblioteca (`traceId=...`) e nos logs, se um
+`logger` foi configurado. Informe esse valor ao suporte do HubSaúde —
+ele permite localizar, na plataforma, o `correlation-id` e os registros
+da requisição correspondente.
+
+Aplicações já instrumentadas com auto-instrumentação OpenTelemetry para
+Node.js (ex.: `@opentelemetry/instrumentation-http`, que cobre
+`node:http`/`node:https`) devem continuar funcionando pelo mesmo motivo
+do SDK Java: a instrumentação tipicamente sobrepõe o header com o
+contexto do span ativo. **Diferente das demais afirmações deste README,
+esta não foi verificada empiricamente neste projeto** — valide na sua
+stack antes de depender disso.
+
+## Troubleshooting
+
+| Sintoma | Causa provável | Solução |
+|---------|-----------------|---------|
+| `SmartTokenError`: "Falha ao carregar chave privada ... (senha incorreta?)" | Chave em formato não reconhecido pelo `node:crypto`, ou senha incorreta/ausente | Confirme o formato (PKCS#8/PKCS#1); force PKCS#8 com `openssl pkcs8 -topk8 -nocrypt -in key.pem -out key-pkcs8.pem` |
+| Erro de conexão com causa `UNABLE_TO_VERIFY_LEAF_SIGNATURE` (ou similar) | CA do servidor não confiável | Use `serverTrustAnchor` (simulador/homologação) ou verifique a cadeia de confiança |
+| `SigningError`: "Falha ao assinar dados..." mesmo com chave/certificado corretos | Certificado não corresponde à chave privada | Compare *modulus*: `openssl x509 -noout -modulus -in cert.pem \| openssl md5` vs `openssl rsa -noout -modulus -in key.pem \| openssl md5` |
+| `SmartTokenError`: "Servidor rejeitou o certificado de cliente (mTLS), sem novas tentativas" | O servidor de autorização enviou um alerta TLS explícito rejeitando o certificado de cliente (CA não confiável, expirado, ou nenhum certificado enviado) — RF-08.1, a lib já falha rápido sem gastar tentativas | Verifique a validade do certificado de cliente e se ele foi emitido pela CA que o servidor espera |
+| Erro de conexão com causa `ECONNREFUSED`/`ECONNRESET`/`ETIMEDOUT` | Firewall, endpoint incorreto, ou instabilidade de rede — a lib já tenta novamente automaticamente | Verifique conectividade e URL; se persistir após todas as tentativas, veja o `traceId` na mensagem final |
+
+Para diagnóstico aprofundado de **confiança de certificado SSL/TLS**
+(com snippets em Java, C#, Node.js e OpenSSL), consulte o
+[guia de troubleshooting TLS](docs/troubleshooting.md).
+
+Para experimentar o fluxo completo localmente sem ambiente de
+homologação, use a ferramenta irmã
+[`hubsaude-cliente-cli`](https://github.com/sesgo-ti/hubsaude-cliente-cli).
+
+## Build e testes
+
+```bash
+npm ci
+npm run typecheck
+npm test
+npm run test:coverage
+```
+
+`test:coverage` aplica o mesmo gate de RNF-06 (mínimo de 85% de
+cobertura de linha) usado no CI. Este repositório ainda não tem um
+perfil de lint/análise estática equivalente a Checkstyle/PMD/SpotBugs
+configurado.
+
+## Publicação de nova versão (release)
+
+Ainda não há um workflow de release equivalente ao `release.yml` do
+SDK Java neste repositório. O processo pretendido:
+
+```bash
+npm version <major|minor|patch>
+git push --follow-tags
+npm publish
+```
+
+com a publicação promovida por CI a partir da tag, incluindo SBOM
+CycloneDX — mesmo padrão do restante do portfólio.
+
+## Referências
+
+| Especificação | Descrição |
+|---------------|-----------|
+| [SMART Backend Services](https://hl7.org/fhir/smart-app-launch/backend-services.html) | Perfil HL7 FHIR para autenticação backend-to-backend |
+| [RFC 6749](https://datatracker.ietf.org/doc/html/rfc6749) | OAuth 2.0 (`client_credentials`) |
+| [RFC 7519](https://datatracker.ietf.org/doc/html/rfc7519) | JSON Web Token (JWT) |
+| [RFC 7521](https://datatracker.ietf.org/doc/html/rfc7521) / [RFC 7523](https://datatracker.ietf.org/doc/html/rfc7523) | Assertion Framework e JWT Bearer Assertion |
+
+O [guia de integração enterprise](docs/integracao-enterprise.md)
+complementa essas referências com lifecycle, resiliência, métricas e
+integração com contêineres.
+
+## Licença e contribuição
+
+Apache License 2.0 — ver [`LICENSE`](LICENSE) e [`NOTICE`](NOTICE).
+Copyright 2025-2026 Estado de Goiás (SES-GO) e Universidade Federal de Goiás (UFG).
+
+- `CONTRIBUTING.md` — fluxo e DCO
+- `CODE_OF_CONDUCT.md` — Contributor Covenant 2.1
+- `SECURITY.md` — divulgação responsável de vulnerabilidades

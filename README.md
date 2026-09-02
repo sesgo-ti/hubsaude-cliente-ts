@@ -153,19 +153,27 @@ const client = await createSmartTokenClient({
 ### HSM via PKCS#11
 
 O Node não tem suporte nativo a PKCS#11 (diferente do JDK, que embute o
-provider `SunPKCS11`), então este SDK não oferece um `fromPkcs11`
-pronto. Forneça sua própria `SigningStrategy` assíncrona, delegando a
-operação ao dispositivo por qualquer via — `pkcs11js` na sua aplicação,
-um sidecar dedicado, ou uma API de KMS em nuvem:
+provider `SunPKCS11`). Por isso `pkcs11js` — a lib de referência para
+Node.js citada na especificação compartilhada pelos SDKs (§9.2) — é uma
+**peer dependency opcional**: instale-a separadamente apenas se for usar
+HSM/token; quem não usa não paga nenhum custo de instalação (confirmado
+empiricamente — sem ela, o `npm install` não baixa nem tenta compilar
+nada):
+
+```bash
+npm install hubsaude-cliente-js pkcs11js
+```
 
 ```ts
-import { createSmartTokenClient, type SigningStrategy } from "hubsaude-cliente-js";
+import { createSmartTokenClient, fromPkcs11 } from "hubsaude-cliente-js";
 
-const signingStrategy: SigningStrategy = async (data) => {
-  // abra a sessão PKCS#11, localize a chave pelo alias/label configurado
-  // no seu HSM, assine `data` no hardware e devolva a assinatura bruta
-  return assinaturaDoHsm;
-};
+const signingStrategy = await fromPkcs11({
+  library: "/usr/lib/softhsm/libsofthsm2.so", // módulo PKCS#11 do fabricante
+  tokenLabel: "meu-token",                     // ou slot: 0
+  keyLabel: "minha-chave-hsm",
+  pin: "123456",
+  jwtAlgorithm: "ES384",                       // padrão: RS384
+});
 
 const client = await createSmartTokenClient({
   tokenEndpoint: "https://hub.saude.go.gov.br/auth/token",
@@ -173,6 +181,14 @@ const client = await createSmartTokenClient({
   signingStrategy,
 });
 ```
+
+A sessão com o token é aberta e autenticada uma única vez, nesta
+chamada (fail-fast: PIN incorreto ou chave inexistente falham aqui, não
+na primeira assinatura), e reaproveitada para todas as assinaturas
+subsequentes pela vida do processo — não há um `close()` explícito
+nesta primeira versão. Se preferir orquestrar o acesso ao HSM você
+mesmo (sidecar dedicado, API de KMS em nuvem), continua podendo fornecer
+sua própria `SigningStrategy` assíncrona em vez de `fromPkcs11`.
 
 ### Cofre / chave já carregada
 

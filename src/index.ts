@@ -30,6 +30,8 @@ export {
   fromPrivateKeyForJwt,
 } from "./signing/SigningStrategyFactory.js";
 export type { Pkcs12Material } from "./signing/SigningStrategyFactory.js";
+export { fromPkcs11 } from "./signing/Pkcs11SigningStrategy.js";
+export type { Pkcs11Options } from "./signing/Pkcs11SigningStrategy.js";
 export { buildAgent, checkCertificateValidity, DEFAULT_TLS_PROTOCOL } from "./tls/SslContextFactory.js";
 export type { TlsMaterial } from "./tls/SslContextFactory.js";
 export {

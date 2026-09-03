@@ -170,7 +170,7 @@ import { createSmartTokenClient, fromPkcs11 } from "hubsaude-cliente-js";
 const signingStrategy = await fromPkcs11({
   library: "/usr/lib/softhsm/libsofthsm2.so", // módulo PKCS#11 do fabricante
   tokenLabel: "meu-token",                     // ou slot: 0
-  keyLabel: "minha-chave-hsm",
+  keyLabel: "minha-chave-hsm",                 // e/ou keyId: Buffer.from(...)
   pin: "123456",
   jwtAlgorithm: "ES384",                       // padrão: RS384
 });
@@ -182,13 +182,23 @@ const client = await createSmartTokenClient({
 });
 ```
 
+A chave é localizada por `keyLabel` (`CKA_LABEL`), `keyId` (`CKA_ID`),
+ou os dois juntos — útil porque muitos HSMs/smart cards pareiam chave
+privada e certificado pelo `CKA_ID` em vez de (ou além d)o label, e
+alguns fabricantes não preenchem o label de forma consistente. Ao menos
+um dos dois é obrigatório.
+
 A sessão com o token é aberta e autenticada uma única vez, nesta
 chamada (fail-fast: PIN incorreto ou chave inexistente falham aqui, não
 na primeira assinatura), e reaproveitada para todas as assinaturas
-subsequentes pela vida do processo — não há um `close()` explícito
-nesta primeira versão. Se preferir orquestrar o acesso ao HSM você
-mesmo (sidecar dedicado, API de KMS em nuvem), continua podendo fornecer
-sua própria `SigningStrategy` assíncrona em vez de `fromPkcs11`.
+subsequentes. `client.close()` libera essa sessão automaticamente — a
+`SigningStrategy` devolvida por `fromPkcs11` tem um método `close`
+opcional que `SmartTokenClient.close()` invoca ao encerrar (não é parte
+do tipo `SigningStrategy` em si; é uma convenção que qualquer estratégia
+customizada pode adotar do mesmo jeito, anexando `close` à função que
+devolve). Se preferir orquestrar o acesso ao HSM você mesmo (sidecar
+dedicado, API de KMS em nuvem), continua podendo fornecer sua própria
+`SigningStrategy` assíncrona em vez de `fromPkcs11`.
 
 ### Cofre / chave já carregada
 

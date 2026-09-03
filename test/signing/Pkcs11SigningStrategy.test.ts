@@ -7,8 +7,9 @@ import { execFileSync } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import pkcs11js from "pkcs11js";
+import pkcs11js, { type Attribute } from "pkcs11js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { createSmartTokenClient } from "../../src/client/SmartTokenClient.js";
 import { SigningError } from "../../src/errors/SigningError.js";
 import { SmartTokenError } from "../../src/errors/SmartTokenError.js";
 import { fromPkcs11 } from "../../src/signing/Pkcs11SigningStrategy.js";
@@ -37,9 +38,9 @@ function initToken(label: string): void {
 }
 
 /** Gera um par de chaves RSA-2048 dentro do token, via pkcs11js puro (não a lib). */
-function generateRsaKeyPair(tokenLabel: string, keyLabel: string): void {
+function generateRsaKeyPair(tokenLabel: string, keyLabel: string, keyId?: Buffer): void {
   withRawSession(tokenLabel, (p11, session) => {
-    const pub = [
+    const pub: Attribute[] = [
       { type: pkcs11js.CKA_CLASS, value: pkcs11js.CKO_PUBLIC_KEY },
       { type: pkcs11js.CKA_TOKEN, value: true },
       { type: pkcs11js.CKA_MODULUS_BITS, value: 2048 },
@@ -47,13 +48,17 @@ function generateRsaKeyPair(tokenLabel: string, keyLabel: string): void {
       { type: pkcs11js.CKA_VERIFY, value: true },
       { type: pkcs11js.CKA_LABEL, value: keyLabel },
     ];
-    const priv = [
+    const priv: Attribute[] = [
       { type: pkcs11js.CKA_CLASS, value: pkcs11js.CKO_PRIVATE_KEY },
       { type: pkcs11js.CKA_TOKEN, value: true },
       { type: pkcs11js.CKA_PRIVATE, value: true },
       { type: pkcs11js.CKA_SIGN, value: true },
       { type: pkcs11js.CKA_LABEL, value: keyLabel },
     ];
+    if (keyId !== undefined) {
+      pub.push({ type: pkcs11js.CKA_ID, value: keyId });
+      priv.push({ type: pkcs11js.CKA_ID, value: keyId });
+    }
     p11.C_GenerateKeyPair(session, { mechanism: pkcs11js.CKM_RSA_PKCS_KEY_PAIR_GEN }, pub, priv);
   });
 }
@@ -151,6 +156,7 @@ beforeAll(async () => {
 
   initToken("token-rs384");
   generateRsaKeyPair("token-rs384", "chave-rs384");
+  generateRsaKeyPair("token-rs384", "chave-com-id", Buffer.from("id-01", "utf8"));
   initToken("token-es384");
   generateEcKeyPair("token-es384", "chave-es384");
   // Token dedicado, nunca autenticado por nenhum outro teste: o login é
@@ -279,5 +285,83 @@ describe("fromPkcs11", () => {
     });
 
     await expect(strategy(Buffer.from("dados", "utf8"))).rejects.toThrow(SigningError);
+  });
+
+  it("localiza a chave por keyId, sem keyLabel", async () => {
+    process.env.SOFTHSM2_CONF = confPath;
+    const strategy = await fromPkcs11({
+      library: SOFTHSM_LIB,
+      pin: PIN,
+      tokenLabel: "token-rs384",
+      keyId: Buffer.from("id-01", "utf8"),
+    });
+
+    const data = Buffer.from("localizado por id", "utf8");
+    const signature = await strategy(data);
+
+    expect(verifyRaw("token-rs384", "chave-com-id", pkcs11js.CKM_SHA384_RSA_PKCS, data, signature)).toBe(true);
+  });
+
+  it("localiza a chave combinando keyLabel e keyId", async () => {
+    process.env.SOFTHSM2_CONF = confPath;
+    const strategy = await fromPkcs11({
+      library: SOFTHSM_LIB,
+      pin: PIN,
+      tokenLabel: "token-rs384",
+      keyLabel: "chave-com-id",
+      keyId: Buffer.from("id-01", "utf8"),
+    });
+
+    const data = Buffer.from("localizado por label e id", "utf8");
+    const signature = await strategy(data);
+
+    expect(verifyRaw("token-rs384", "chave-com-id", pkcs11js.CKM_SHA384_RSA_PKCS, data, signature)).toBe(true);
+  });
+
+  it("lança Error quando nem keyLabel nem keyId são informados", async () => {
+    process.env.SOFTHSM2_CONF = confPath;
+    await expect(
+      fromPkcs11({ library: SOFTHSM_LIB, pin: PIN, tokenLabel: "token-rs384" }),
+    ).rejects.toThrow("Defina keyLabel e/ou keyId");
+  });
+
+  it("close() encerra a sessão — assinar depois de fechar falha", async () => {
+    process.env.SOFTHSM2_CONF = confPath;
+    const strategy = await fromPkcs11({
+      library: SOFTHSM_LIB,
+      pin: PIN,
+      tokenLabel: "token-rs384",
+      keyLabel: "chave-rs384",
+    });
+
+    // Confirma que funciona antes de fechar.
+    await strategy(Buffer.from("antes de fechar", "utf8"));
+
+    await strategy.close?.();
+
+    await expect(strategy(Buffer.from("depois de fechar", "utf8"))).rejects.toThrow(SigningError);
+  });
+
+  it("createSmartTokenClient.close() fecha a sessão PKCS#11 subjacente", async () => {
+    process.env.SOFTHSM2_CONF = confPath;
+    const strategy = await fromPkcs11({
+      library: SOFTHSM_LIB,
+      pin: PIN,
+      tokenLabel: "token-rs384",
+      keyLabel: "chave-rs384",
+    });
+
+    const client = await createSmartTokenClient({
+      tokenEndpoint: "https://exemplo.invalido/token",
+      clientId: "c",
+      signingStrategy: strategy,
+    });
+
+    await client.close();
+
+    // A sessão PKCS#11 foi fechada como parte do close() do cliente —
+    // chamar a estratégia diretamente (fora do cliente já fechado) prova
+    // que o encerramento foi propagado, não só que o cliente rejeita uso.
+    await expect(strategy(Buffer.from("depois do close do cliente", "utf8"))).rejects.toThrow(SigningError);
   });
 });

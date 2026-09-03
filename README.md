@@ -8,8 +8,8 @@
 Cliente TypeScript/Node.js (consumível também por JavaScript puro) para
 obtenção de tokens de acesso ao HubSaúde via
 [SMART Backend Services](https://hl7.org/fhir/smart-app-launch/backend-services.html)
-(SMART-on-FHIR). Encapsula a montagem do JWT *client assertion*, sua
-assinatura e a troca pelo *access token* no endpoint OAuth 2.0.
+(SMART-on-FHIR). Encapsula a montagem do JWT _client assertion_, sua
+assinatura e a troca pelo _access token_ no endpoint OAuth 2.0.
 
 O contrato comportamental está em [`ESPECIFICACAO.md`](ESPECIFICACAO.md)
 — requisitos normativos compartilhados pelo portfólio oficial de SDKs:
@@ -60,10 +60,10 @@ const token = await client.obtainToken("system/Patient.rs");
 ```
 
 A instância é reutilizável e segura para chamadas concorrentes (Node
-roda em um único *event loop*, então não há condição de corrida entre
+roda em um único _event loop_, então não há condição de corrida entre
 threads do sistema operacional a evitar aqui). Mantém cache do token por
 scope, renovado conforme margem de expiração configurável, e executa
-*retries* com *backoff* exponencial em falha transitória de rede.
+_retries_ com _backoff_ exponencial em falha transitória de rede.
 Reutilize a mesma instância pelo ciclo de vida da aplicação e chame
 `close()` uma única vez no encerramento.
 
@@ -71,7 +71,7 @@ Reutilize a mesma instância pelo ciclo de vida da aplicação e chame
 
 `close()` é idempotente, aguarda operações em voo, encerra a conexão
 HTTP interna e invalida todo o cache. Após o fechamento, novas
-obtenções de token falham explicitamente. Em aplicações *long-lived*,
+obtenções de token falham explicitamente. Em aplicações _long-lived_,
 feche a instância no desligamento do processo (ex.: handler de
 `SIGTERM`); em CLIs, jobs curtos e testes, prefira
 `await using client = await createSmartTokenClient(...)` — o
@@ -80,13 +80,13 @@ automaticamente ao sair do escopo.
 
 As operações de token podem propagar:
 
-| Tipo | Situação |
-|------|----------|
-| Erro nativo do `node:http`/`node:https` (ex.: `Error` com `code: "ECONNRESET"`) | Falha de rede não recuperada pelos *retries* internos — propagado sem reembrulhar |
-| `SmartTokenError` | Configuração criptográfica inválida, resposta HTTP/JSON inválida, algoritmo não suportado, ou rejeição confirmada do certificado de cliente pelo servidor (RF-08.1 — ver seção de mTLS) |
-| `SigningError` | Falha da estratégia criptográfica ao assinar o `client_assertion` |
-| `RangeError` | Valor fora do intervalo aceito (chave fraca, `hub_ctx` malformado, `tokenCacheMaxEntries` não positivo) |
-| `Error` | Precondição de configuração/estado violada (ex.: opções mutuamente exclusivas informadas juntas, cliente já fechado) |
+| Tipo                                                                            | Situação                                                                                                                                                                                |
+| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Erro nativo do `node:http`/`node:https` (ex.: `Error` com `code: "ECONNRESET"`) | Falha de rede não recuperada pelos _retries_ internos — propagado sem reembrulhar                                                                                                       |
+| `SmartTokenError`                                                               | Configuração criptográfica inválida, resposta HTTP/JSON inválida, algoritmo não suportado, ou rejeição confirmada do certificado de cliente pelo servidor (RF-08.1 — ver seção de mTLS) |
+| `SigningError`                                                                  | Falha da estratégia criptográfica ao assinar o `client_assertion`                                                                                                                       |
+| `RangeError`                                                                    | Valor fora do intervalo aceito (chave fraca, `hub_ctx` malformado, `tokenCacheMaxEntries` não positivo)                                                                                 |
+| `Error`                                                                         | Precondição de configuração/estado violada (ex.: opções mutuamente exclusivas informadas juntas, cliente já fechado)                                                                    |
 
 Node não tem um equivalente a interromper uma thread em espera; se você
 cancelar a operação externamente (ex.: envolvendo a chamada com seu
@@ -107,16 +107,16 @@ lifecycle, circuit breaker, métricas e observabilidade.
 
 ## Fontes de chave (`SigningStrategy`)
 
-A escolha de *onde* a chave privada reside é a decisão arquitetural
+A escolha de _onde_ a chave privada reside é a decisão arquitetural
 mais relevante para uma integração de produção:
 
-| Fonte | Quando usar | Exposição da chave |
-|-------|-------------|--------------------|
-| PEM (PKCS#8) | Prototipação e testes | Arquivo em claro no disco |
-| PEM com senha | Mitigação adicional quando PEM é inevitável | Cifrada em disco; senha em runtime |
-| PKCS#12 direto | **Recomendado para produção** com chaves em software | Decodificada em memória do processo a cada uso; não persiste em disco |
-| HSM via PKCS#11 | Produção com chave não-exportável | Nunca sai do hardware — via `SigningStrategy` própria, não embutida no SDK |
-| Cofre (ex.: OpenBao) | Chave provisionada por cofre central | Buscada em runtime; nunca em disco |
+| Fonte                | Quando usar                                          | Exposição da chave                                                         |
+| -------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------- |
+| PEM (PKCS#8)         | Prototipação e testes                                | Arquivo em claro no disco                                                  |
+| PEM com senha        | Mitigação adicional quando PEM é inevitável          | Cifrada em disco; senha em runtime                                         |
+| PKCS#12 direto       | **Recomendado para produção** com chaves em software | Decodificada em memória do processo a cada uso; não persiste em disco      |
+| HSM via PKCS#11      | Produção com chave não-exportável                    | Nunca sai do hardware — via `SigningStrategy` própria, não embutida no SDK |
+| Cofre (ex.: OpenBao) | Chave provisionada por cofre central                 | Buscada em runtime; nunca em disco                                         |
 
 ### Tamanho mínimo de chave
 
@@ -124,10 +124,10 @@ Chaves fracas são rejeitadas no carregamento e na construção da
 estratégia de assinatura (fail-fast, `RangeError`), conforme NIST SP
 800-57:
 
-| Algoritmo | Mínimo aceito |
-|-----------|---------------|
-| RSA | 2048 bits (módulo) |
-| EC | P-256 (campo de 256 bits) |
+| Algoritmo | Mínimo aceito             |
+| --------- | ------------------------- |
+| RSA       | 2048 bits (módulo)        |
+| EC        | P-256 (campo de 256 bits) |
 
 Chaves fornecidas por uma `SigningStrategy` própria (HSM, cofre) não
 passam por esta validação — a política de tamanho fica a cargo da fonte.
@@ -169,10 +169,10 @@ import { createSmartTokenClient, fromPkcs11 } from "hubsaude-cliente-js";
 
 const signingStrategy = await fromPkcs11({
   library: "/usr/lib/softhsm/libsofthsm2.so", // módulo PKCS#11 do fabricante
-  tokenLabel: "meu-token",                     // ou slot: 0
-  keyLabel: "minha-chave-hsm",                 // e/ou keyId: Buffer.from(...)
+  tokenLabel: "meu-token", // ou slot: 0
+  keyLabel: "minha-chave-hsm", // e/ou keyId: Buffer.from(...)
   pin: "123456",
-  jwtAlgorithm: "ES384",                       // padrão: RS384
+  jwtAlgorithm: "ES384", // padrão: RS384
 });
 
 const client = await createSmartTokenClient({
@@ -240,17 +240,17 @@ const client = await createSmartTokenClient({
   clientId: "meu-sistema",
   privateKeyPem: "chave-privada.pem",
   certificatePem: "certificado.pem",
-  serverTrustAnchor: "ca-custom.pem",  // simulador/homologação
-  tlsProtocol: "TLSv1.2",              // padrão: "TLSv1.3"
+  serverTrustAnchor: "ca-custom.pem", // simulador/homologação
+  tlsProtocol: "TLSv1.2", // padrão: "TLSv1.3"
   connectTimeoutMs: 10_000,
   requestTimeoutMs: 30_000,
-  assertionTtlSeconds: 120,            // TTL do JWT
+  assertionTtlSeconds: 120, // TTL do JWT
   enableTokenCache: true,
-  tokenCacheMarginSeconds: 30,         // margem de renovação
-  tokenCacheMaxEntries: 1_000,         // teto LRU por scope
+  tokenCacheMarginSeconds: 30, // margem de renovação
+  tokenCacheMaxEntries: 1_000, // teto LRU por scope
   maxRetries: 3,
-  jwtAlgorithm: "RS384",               // padrão: RS384 (HubSaúde aceita RS384/ES384)
-  keyId: "minha-chave-2026",           // kid no header do JWT (opcional)
+  jwtAlgorithm: "RS384", // padrão: RS384 (HubSaúde aceita RS384/ES384)
+  keyId: "minha-chave-2026", // kid no header do JWT (opcional)
   hubContext: { ig: "hemograma", versao: "0.0.1" }, // claim hub_ctx
 });
 ```
@@ -276,7 +276,7 @@ claim é omitido — servidores que o exigem rejeitarão o assertion.
 ### Identificador de chave (`kid`)
 
 Quando o servidor de autorização publica múltiplas chaves (JWKS), use
-`keyId: "..."` para incluir o header `kid` no *client assertion*,
+`keyId: "..."` para incluir o header `kid` no _client assertion_,
 permitindo que o servidor selecione a chave pública correta para
 validar a assinatura. Se não configurado, o header contém apenas `alg`
 e `typ`.
@@ -287,7 +287,7 @@ Em vez de fixar `tokenEndpoint`, informe a base FHIR — o cliente
 resolve via `.well-known/smart-configuration`:
 
 ```ts
-fhirBase: "https://hub.saude.go.gov.br"
+fhirBase: "https://hub.saude.go.gov.br";
 ```
 
 ### `serverTrustAnchor` — quando usar
@@ -317,9 +317,9 @@ openssl pkcs8 -topk8 -v2 aes-256-cbc -in chave-privada.pem -out chave-encrypted.
 
 ## Resiliência em produção
 
-A biblioteca já cobre cache de token + *retries* com *backoff*. Para
+A biblioteca já cobre cache de token + _retries_ com _backoff_. Para
 proteção adicional contra falhas prolongadas do servidor de
-autorização, combine com um *circuit breaker* externo na camada de
+autorização, combine com um _circuit breaker_ externo na camada de
 orquestração (ex.: `opossum`, `cockatiel`, ou o do seu API
 gateway/service mesh) — o SDK não embute nenhum. O
 [guia de integração enterprise](docs/integracao-enterprise.md) descreve
@@ -338,7 +338,7 @@ descoberta via `.well-known/smart-configuration`) envia o header
 (`node:crypto.randomBytes`) **por requisição** — cada retry carrega um
 par novo. Não há dependência de nenhum SDK OpenTelemetry.
 
-A flag `sampled` é `00` (*not sampled*), coerente com a semântica do
+A flag `sampled` é `00` (_not sampled_), coerente com a semântica do
 W3C Trace Context §3.2.2.5.1: a biblioteca não grava spans.
 
 **Como usar com o suporte**: em falhas, o trace-id enviado aparece nas
@@ -357,13 +357,13 @@ stack antes de depender disso.
 
 ## Troubleshooting
 
-| Sintoma | Causa provável | Solução |
-|---------|-----------------|---------|
-| `SmartTokenError`: "Falha ao carregar chave privada ... (senha incorreta?)" | Chave em formato não reconhecido pelo `node:crypto`, ou senha incorreta/ausente | Confirme o formato (PKCS#8/PKCS#1); force PKCS#8 com `openssl pkcs8 -topk8 -nocrypt -in key.pem -out key-pkcs8.pem` |
-| Erro de conexão com causa `UNABLE_TO_VERIFY_LEAF_SIGNATURE` (ou similar) | CA do servidor não confiável | Use `serverTrustAnchor` (simulador/homologação) ou verifique a cadeia de confiança |
-| `SigningError`: "Falha ao assinar dados..." mesmo com chave/certificado corretos | Certificado não corresponde à chave privada | Compare *modulus*: `openssl x509 -noout -modulus -in cert.pem \| openssl md5` vs `openssl rsa -noout -modulus -in key.pem \| openssl md5` |
-| `SmartTokenError`: "Servidor rejeitou o certificado de cliente (mTLS), sem novas tentativas" | O servidor de autorização enviou um alerta TLS explícito rejeitando o certificado de cliente (CA não confiável, expirado, ou nenhum certificado enviado) — RF-08.1, a lib já falha rápido sem gastar tentativas | Verifique a validade do certificado de cliente e se ele foi emitido pela CA que o servidor espera |
-| Erro de conexão com causa `ECONNREFUSED`/`ECONNRESET`/`ETIMEDOUT` | Firewall, endpoint incorreto, ou instabilidade de rede — a lib já tenta novamente automaticamente | Verifique conectividade e URL; se persistir após todas as tentativas, veja o `traceId` na mensagem final |
+| Sintoma                                                                                      | Causa provável                                                                                                                                                                                                  | Solução                                                                                                                                   |
+| -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `SmartTokenError`: "Falha ao carregar chave privada ... (senha incorreta?)"                  | Chave em formato não reconhecido pelo `node:crypto`, ou senha incorreta/ausente                                                                                                                                 | Confirme o formato (PKCS#8/PKCS#1); force PKCS#8 com `openssl pkcs8 -topk8 -nocrypt -in key.pem -out key-pkcs8.pem`                       |
+| Erro de conexão com causa `UNABLE_TO_VERIFY_LEAF_SIGNATURE` (ou similar)                     | CA do servidor não confiável                                                                                                                                                                                    | Use `serverTrustAnchor` (simulador/homologação) ou verifique a cadeia de confiança                                                        |
+| `SigningError`: "Falha ao assinar dados..." mesmo com chave/certificado corretos             | Certificado não corresponde à chave privada                                                                                                                                                                     | Compare _modulus_: `openssl x509 -noout -modulus -in cert.pem \| openssl md5` vs `openssl rsa -noout -modulus -in key.pem \| openssl md5` |
+| `SmartTokenError`: "Servidor rejeitou o certificado de cliente (mTLS), sem novas tentativas" | O servidor de autorização enviou um alerta TLS explícito rejeitando o certificado de cliente (CA não confiável, expirado, ou nenhum certificado enviado) — RF-08.1, a lib já falha rápido sem gastar tentativas | Verifique a validade do certificado de cliente e se ele foi emitido pela CA que o servidor espera                                         |
+| Erro de conexão com causa `ECONNREFUSED`/`ECONNRESET`/`ETIMEDOUT`                            | Firewall, endpoint incorreto, ou instabilidade de rede — a lib já tenta novamente automaticamente                                                                                                               | Verifique conectividade e URL; se persistir após todas as tentativas, veja o `traceId` na mensagem final                                  |
 
 Para diagnóstico aprofundado de **confiança de certificado SSL/TLS**
 (com snippets em Java, C#, Node.js e OpenSSL), consulte o
@@ -382,10 +382,44 @@ npm test
 npm run test:coverage
 ```
 
-`test:coverage` aplica o mesmo gate de RNF-06 (mínimo de 85% de
-cobertura de linha) usado no CI. Este repositório ainda não tem um
-perfil de lint/análise estática equivalente a Checkstyle/PMD/SpotBugs
-configurado.
+`test:coverage` aplica um gate mínimo de 85% de cobertura de linha.
+
+### Qualidade de código
+
+```bash
+npm run lint          # ESLint — só verifica
+npm run lint:fix       # ESLint — corrige o que der
+npm run format:check   # Prettier — só verifica
+npm run format         # Prettier — reformata
+npm run depcruise       # regras de dependência entre módulos (sem ciclos, sem módulo de apoio importar de client/)
+```
+
+`eslint.config.js` inclui `eslint-plugin-security`, focado em padrões
+arriscados (uso de `eval`, caminho de arquivo não-literal, etc.).
+
+**Limitação atual conhecida**: este projeto usa `typescript@^7.0.2`, uma
+versão muito recente do compilador — o `typescript-eslint` ainda não a
+suporta (ver comentário no topo de `eslint.config.js`), então as regras
+específicas de TypeScript não estão ativas por enquanto, só as regras
+genéricas de JavaScript e de segurança.
+
+### Mutation testing
+
+```bash
+npm run test:mutation
+```
+
+Não roda como parte de `npm test` nem de CI — é uma ferramenta de
+diagnóstico sob demanda, não um gate obrigatório.
+
+### SBOM
+
+```bash
+npm run sbom
+```
+
+Gera `sbom.json` (formato CycloneDX) a partir da árvore de dependências
+atual — útil para auditoria, não gerado automaticamente em build/CI.
 
 ## Publicação de nova versão (release)
 
@@ -403,12 +437,12 @@ CycloneDX — mesmo padrão do restante do portfólio.
 
 ## Referências
 
-| Especificação | Descrição |
-|---------------|-----------|
-| [SMART Backend Services](https://hl7.org/fhir/smart-app-launch/backend-services.html) | Perfil HL7 FHIR para autenticação backend-to-backend |
-| [RFC 6749](https://datatracker.ietf.org/doc/html/rfc6749) | OAuth 2.0 (`client_credentials`) |
-| [RFC 7519](https://datatracker.ietf.org/doc/html/rfc7519) | JSON Web Token (JWT) |
-| [RFC 7521](https://datatracker.ietf.org/doc/html/rfc7521) / [RFC 7523](https://datatracker.ietf.org/doc/html/rfc7523) | Assertion Framework e JWT Bearer Assertion |
+| Especificação                                                                                                         | Descrição                                            |
+| --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| [SMART Backend Services](https://hl7.org/fhir/smart-app-launch/backend-services.html)                                 | Perfil HL7 FHIR para autenticação backend-to-backend |
+| [RFC 6749](https://datatracker.ietf.org/doc/html/rfc6749)                                                             | OAuth 2.0 (`client_credentials`)                     |
+| [RFC 7519](https://datatracker.ietf.org/doc/html/rfc7519)                                                             | JSON Web Token (JWT)                                 |
+| [RFC 7521](https://datatracker.ietf.org/doc/html/rfc7521) / [RFC 7523](https://datatracker.ietf.org/doc/html/rfc7523) | Assertion Framework e JWT Bearer Assertion           |
 
 O [guia de integração enterprise](docs/integracao-enterprise.md)
 complementa essas referências com lifecycle, resiliência, métricas e

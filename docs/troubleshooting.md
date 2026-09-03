@@ -21,10 +21,18 @@ seção é ajudar a detectar se há um problema de confiança na cadeia TLS
 rejeição de **certificado de cliente** pelo servidor em mTLS, coberto na
 tabela de sintomas mais abaixo.
 
-### Usando OpenSSL (linha de comando, Linux/macOS / shells POSIX)
+### Usando OpenSSL (linha de comando)
+
+Linux/macOS/shells POSIX (bash, zsh, ou Git Bash/WSL no Windows):
 
 ```bash
 openssl s_client -connect hub.saude.go.gov.br:443 -servername hub.saude.go.gov.br < /dev/null
+```
+
+Windows (PowerShell nativo — `openssl` precisa estar instalado e no `PATH`):
+
+```powershell
+"" | openssl s_client -connect hub.saude.go.gov.br:443 -servername hub.saude.go.gov.br
 ```
 
 - Durante a verificação, linhas como `verify return:1` para cada
@@ -36,10 +44,16 @@ openssl s_client -connect hub.saude.go.gov.br:443 -servername hub.saude.go.gov.b
   - `Verify return code: 21 (unable to verify the first certificate)` →
     certificado intermediário ausente
 
-Para um check rápido de validade:
+Para um check rápido de validade (Linux/macOS/POSIX):
 
 ```bash
 echo | openssl s_client -connect hub.saude.go.gov.br:443 -servername hub.saude.go.gov.br 2>/dev/null | openssl x509 -noout -dates
+```
+
+Equivalente em PowerShell:
+
+```powershell
+"" | openssl s_client -connect hub.saude.go.gov.br:443 -servername hub.saude.go.gov.br 2>$null | openssl x509 -noout -dates
 ```
 
 ### Usando Node.js diretamente
@@ -111,8 +125,17 @@ store da plataforma).
 Quando o problema afeta o processo Node inteiro (não só este SDK), ou
 como alternativa fora do código:
 
+Linux/macOS/shells POSIX:
+
 ```bash
 export NODE_EXTRA_CA_CERTS=/caminho/para/ca-raiz.pem
+node minha-app.js
+```
+
+Windows (PowerShell):
+
+```powershell
+$env:NODE_EXTRA_CA_CERTS = "C:\caminho\para\ca-raiz.pem"
 node minha-app.js
 ```
 

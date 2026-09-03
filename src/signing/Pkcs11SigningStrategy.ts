@@ -23,7 +23,7 @@ import type { CloseableSigningStrategy } from "./SigningStrategy.js";
  *   chave que combine com ambos
  * @property keyId - `CKA_ID` da chave privada a usar — muitos
  *   HSMs/smart cards pareiam chave privada e certificado por esse
- *   identificador binário compartilhado em vez de (ou além d)o label,
+ *   identificador binário compartilhado em vez de (ou além do label),
  *   e alguns fabricantes não preenchem o label de forma consistente
  * @property slot - índice do slot a usar (posição em
  *   `C_GetSlotList`). Mutuamente exclusivo com `tokenLabel`; se nenhum
@@ -50,12 +50,15 @@ const PSS_SALT_LEN_512 = 64;
 
 /**
  * Buffer de saída para `C_Sign`, generoso o bastante para qualquer
- * assinatura RSA (até 4096 bits = 512 bytes) ou EC (até P-521 = 132
+ * assinatura RSA (até 8192 bits = 1024 bytes) ou EC (até P-521 = 132
  * bytes) suportada por este módulo. `pkcs11js` corta o resultado para o
  * tamanho real devolvido pelo módulo PKCS#11 (confirmado lendo o código
- * de `modifyMethod` em `pkcs11js`), então superalocar aqui é seguro.
+ * de `modifyMethod` em `pkcs11js`), então superalocar aqui é seguro. Um
+ * token com chave RSA maior que 8192 bits (extremamente incomum) ainda
+ * falharia por buffer insuficiente — `fromPkcs11` não valida o tamanho
+ * da chave antecipadamente, já que handles PKCS#11 são opacos.
  */
-const SIGNATURE_BUFFER_SIZE = 512;
+const SIGNATURE_BUFFER_SIZE = 1024;
 
 /**
  * Módulo `pkcs11js` carregado dinamicamente — nunca importado
@@ -73,12 +76,11 @@ type Pkcs11Instance = InstanceType<Pkcs11Module["PKCS11"]>;
  * `pkcs11js` é uma `peerDependency` **opcional** desta lib (ver
  * `package.json`), não uma dependência normal — instalar um binário
  * nativo que exige compilação (`node-gyp`) em toda instalação da lib,
- * mesmo para quem nunca usa HSM, seria um custo real e desnecessário
- * (confirmado empiricamente durante o desenho desta função; ver
- * RASTREABILIDADE.md). Por isso o `import()` aqui é dinâmico, executado
- * só quando {@link fromPkcs11} é chamada — nenhum outro arquivo desta
- * lib importa `pkcs11js` de forma alguma, então consumidores que nunca
- * chamam esta função nunca acionam a resolução do módulo.
+ * mesmo para quem nunca usa HSM, seria um custo real e desnecessário.
+ * Por isso o `import()` aqui é dinâmico, executado só quando
+ * {@link fromPkcs11} é chamada — nenhum outro arquivo desta lib importa
+ * `pkcs11js` de forma alguma, então consumidores que nunca chamam esta
+ * função nunca acionam a resolução do módulo.
  *
  * @throws {SmartTokenError} se `pkcs11js` não estiver instalado
  */
@@ -271,14 +273,14 @@ function initializeOnce(pkcs11: Pkcs11Module, p11: Pkcs11Instance, library: stri
  *
  * A sessão com o token é aberta e autenticada uma única vez, nesta
  * chamada (fail-fast: PIN incorreto ou chave inexistente falham aqui,
- * não na primeira assinatura — RF-12.3) e mantida aberta para todas as
- * assinaturas subsequentes feitas pela `SigningStrategy` devolvida.
- * `createSmartTokenClient` invoca `close()` automaticamente ao fechar o
- * cliente (ver {@link CloseableSigningStrategy}) — faz logout e fecha a
- * sessão PKCS#11, mas não chama `C_Finalize` no módulo (o módulo nativo
- * é um singleton por processo, possivelmente compartilhado com outras
- * estratégias PKCS#11 vivas no mesmo processo; derrubá-lo aqui as
- * quebraria).
+ * não na primeira assinatura — RF-12.3; se algo falhar depois de abrir
+ * a sessão, ela é fechada antes do erro se propagar, evitando vazar o
+ * handle) e mantida aberta para todas as assinaturas subsequentes
+ * feitas pela `SigningStrategy` devolvida. `createSmartTokenClient`
+ * invoca `close()` automaticamente ao fechar o cliente (ver
+ * {@link CloseableSigningStrategy}) — fecha só esta sessão específica,
+ * sem afetar outras. `close()` não faz logout nem chama `C_Finalize` no
+ * módulo (ver o comentário em `strategy.close` abaixo para o motivo).
  *
  * @param options - configuração de acesso ao HSM/token
  * @returns uma {@link CloseableSigningStrategy} assíncrona pronta para uso
@@ -302,21 +304,35 @@ export async function fromPkcs11(options: Pkcs11Options): Promise<CloseableSigni
 
   const slot = findSlot(pkcs11, p11, options);
   const session = p11.C_OpenSession(slot, pkcs11.CKF_SERIAL_SESSION);
+  let privateKey: Buffer;
   try {
-    p11.C_Login(session, pkcs11.CKU_USER, options.pin);
-  } catch (err) {
-    const code = (err as { code?: number }).code;
-    // O login é uma propriedade do token, não da sessão, na maioria das
-    // implementações (confirmado empiricamente contra SoftHSM2): uma
-    // segunda sessão no mesmo token — outra chamada a fromPkcs11 no
-    // mesmo processo — encontra o token já autenticado. Não é uma
-    // falha real, então não a tratamos como PIN incorreto.
-    if (code !== pkcs11.CKR_USER_ALREADY_LOGGED_IN) {
-      throw new SmartTokenError(`Falha ao autenticar no token PKCS#11 (PIN incorreto?): ${options.library}`, err);
+    try {
+      p11.C_Login(session, pkcs11.CKU_USER, options.pin);
+    } catch (err) {
+      const code = (err as { code?: number }).code;
+      // O login é uma propriedade do token, não da sessão, na maioria
+      // das implementações (confirmado empiricamente contra SoftHSM2):
+      // uma segunda sessão no mesmo token — outra chamada a fromPkcs11
+      // no mesmo processo — encontra o token já autenticado. Não é uma
+      // falha real, então não a tratamos como PIN incorreto.
+      if (code !== pkcs11.CKR_USER_ALREADY_LOGGED_IN) {
+        throw new SmartTokenError(`Falha ao autenticar no token PKCS#11 (PIN incorreto?): ${options.library}`, err);
+      }
     }
-  }
 
-  const privateKey = findPrivateKey(pkcs11, p11, session, options);
+    privateKey = findPrivateKey(pkcs11, p11, session, options);
+  } catch (err) {
+    // Sessão aberta mas algo depois falhou (login ou busca da chave) —
+    // fecha antes de propagar, para não vazar o handle. Tokens têm um
+    // limite de sessões simultâneas; sem isso, cada fromPkcs11 que
+    // falhasse (ex.: keyLabel errado) deixaria uma sessão presa.
+    try {
+      p11.C_CloseSession(session);
+    } catch {
+      // ignorado — já estamos propagando o erro original
+    }
+    throw err;
+  }
 
   const strategy: CloseableSigningStrategy = (data: Uint8Array): Promise<Uint8Array> => {
     return new Promise((resolve, reject) => {
@@ -341,17 +357,19 @@ export async function fromPkcs11(options: Pkcs11Options): Promise<CloseableSigni
   };
 
   strategy.close = (): void => {
-    // Logout best-effort: login é uma propriedade do token, não da
-    // sessão (mesmo motivo documentado acima para initializeOnce/login)
-    // — outra sessão no mesmo processo pode já ter deslogado o token.
-    // Fechamento de recurso não deveria lançar e impedir o resto do
-    // encerramento do cliente, então qualquer erro aqui é ignorado.
+    // Fecha só esta sessão — não faz C_Logout. Login é uma propriedade
+    // do token, não da sessão, na maioria das implementações: outra
+    // chamada a fromPkcs11 para o mesmo token pode ter uma sessão
+    // própria ainda em uso, e um logout aqui a derrubaria também.
+    // Fechar a sessão (sem logout) já é suficiente para invalidar as
+    // operações desta estratégia especificamente. Também tolera
+    // fechamento duplicado — close() deve ser best-effort/idempotente,
+    // nunca lançar e impedir o restante do encerramento do cliente.
     try {
-      p11.C_Logout(session);
+      p11.C_CloseSession(session);
     } catch {
       // ignorado de propósito — ver comentário acima
     }
-    p11.C_CloseSession(session);
   };
 
   return strategy;

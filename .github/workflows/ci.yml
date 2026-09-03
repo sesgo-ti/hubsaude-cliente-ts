@@ -40,7 +40,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y softhsm2
-          echo "SOFTHSM_LIB=$(dpkg -L softhsm2 | grep -m1 libsofthsm2.so$)" >> "$GITHUB_ENV"
+          # O módulo PKCS#11 (libsofthsm2.so) pertence ao pacote
+          # `libsofthsm2` (dependência de `softhsm2`, que só traz os
+          # utilitários como `softhsm2-util`) — buscar em `softhsm2` aqui
+          # encontra nada.
+          lib="$(dpkg -L libsofthsm2 | grep -m1 'libsofthsm2\.so$')"
+          test -n "$lib" || { echo "libsofthsm2.so não encontrado" >&2; exit 1; }
+          echo "SOFTHSM_LIB=$lib" >> "$GITHUB_ENV"
 
       # `typescript-eslint` 8.x ainda recusa carregar contra `typescript@7.x`
       # (checagem de versão feita pelo próprio pacote na importação), o que

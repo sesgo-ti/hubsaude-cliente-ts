@@ -47,9 +47,21 @@ function generateSelfSignedCert(notBefore: string, notAfter: string): string {
   execFileSync(
     "openssl",
     [
-      "req", "-x509", "-newkey", "rsa:2048", "-keyout", keyPath, "-out", certPath,
-      "-nodes", "-subj", "/CN=teste-pemloader",
-      "-not_before", notBefore, "-not_after", notAfter,
+      "req",
+      "-x509",
+      "-newkey",
+      "rsa:2048",
+      "-keyout",
+      keyPath,
+      "-out",
+      certPath,
+      "-nodes",
+      "-subj",
+      "/CN=teste-pemloader",
+      "-not_before",
+      notBefore,
+      "-not_after",
+      notAfter,
     ],
     { stdio: "ignore" },
   );
@@ -125,9 +137,7 @@ describe("loadPrivateKey / loadPrivateKeyFromString", () => {
   });
 
   it("falha com SmartTokenError quando o conteúdo não é uma chave privada", () => {
-    expect(() => loadPrivateKeyFromString("não é um PEM válido", undefined, "<string>")).toThrow(
-      SmartTokenError,
-    );
+    expect(() => loadPrivateKeyFromString("não é um PEM válido", undefined, "<string>")).toThrow(SmartTokenError);
   });
 
   it("falha com RangeError para chave RSA abaixo do tamanho mínimo", () => {

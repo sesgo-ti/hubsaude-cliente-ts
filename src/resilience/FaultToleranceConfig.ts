@@ -53,9 +53,6 @@ export function resolveFaultToleranceConfig(options: FaultToleranceOptions): Fau
       options.assertionTtlSeconds !== undefined && options.assertionTtlSeconds > 0
         ? options.assertionTtlSeconds
         : DEFAULT_ASSERTION_TTL_SECONDS,
-    maxRetries:
-      options.maxRetries !== undefined && options.maxRetries > 0
-        ? options.maxRetries
-        : DEFAULT_MAX_RETRIES,
+    maxRetries: options.maxRetries !== undefined && options.maxRetries > 0 ? options.maxRetries : DEFAULT_MAX_RETRIES,
   });
 }

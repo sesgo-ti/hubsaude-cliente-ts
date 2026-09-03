@@ -1,0 +1,6 @@
+dist
+coverage
+node_modules
+reports
+.stryker-tmp
+sbom.json

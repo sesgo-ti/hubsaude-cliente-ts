@@ -43,12 +43,7 @@ describe("createPrivateKeySigningStrategy", () => {
     const signature = await strategy(DATA);
 
     expect(
-      verify(
-        "sha256",
-        DATA,
-        { key: publicKey, padding: constants.RSA_PKCS1_PSS_PADDING, saltLength: 32 },
-        signature,
-      ),
+      verify("sha256", DATA, { key: publicKey, padding: constants.RSA_PKCS1_PSS_PADDING, saltLength: 32 }, signature),
     ).toBe(true);
   });
 
@@ -62,9 +57,7 @@ describe("createPrivateKeySigningStrategy", () => {
     const signature = await strategy(DATA);
 
     expect(signature.length).toBe(64); // P-256: 32 bytes de R + 32 bytes de S
-    expect(
-      verify("sha256", DATA, { key: publicKey, dsaEncoding: "ieee-p1363" }, signature),
-    ).toBe(true);
+    expect(verify("sha256", DATA, { key: publicKey, dsaEncoding: "ieee-p1363" }, signature)).toBe(true);
   });
 
   it("rejeita chave RSA abaixo do tamanho mínimo", () => {

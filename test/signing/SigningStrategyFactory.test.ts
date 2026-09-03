@@ -1,11 +1,5 @@
 import { execFileSync } from "node:child_process";
-import {
-  constants,
-  createPrivateKey,
-  createPublicKey,
-  generateKeyPairSync,
-  verify,
-} from "node:crypto";
+import { constants, createPrivateKey, createPublicKey, generateKeyPairSync, verify } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -55,8 +49,19 @@ async function generatePkcs12(): Promise<Buffer> {
   execFileSync(
     "openssl",
     [
-      "req", "-x509", "-newkey", "rsa:2048", "-keyout", keyPath, "-out", certPath,
-      "-days", "1", "-nodes", "-subj", "/CN=teste-factory",
+      "req",
+      "-x509",
+      "-newkey",
+      "rsa:2048",
+      "-keyout",
+      keyPath,
+      "-out",
+      certPath,
+      "-days",
+      "1",
+      "-nodes",
+      "-subj",
+      "/CN=teste-factory",
     ],
     { stdio: "ignore" },
   );

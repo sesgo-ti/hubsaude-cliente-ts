@@ -64,9 +64,7 @@ describe("discoverTokenEndpoint", () => {
       res.end(JSON.stringify({ token_endpoint: "https://localhost:9999/auth/token" }));
     });
 
-    await expect(discoverTokenEndpoint(`${base}/`, agent, 5000)).resolves.toBe(
-      "https://localhost:9999/auth/token",
-    );
+    await expect(discoverTokenEndpoint(`${base}/`, agent, 5000)).resolves.toBe("https://localhost:9999/auth/token");
   });
 
   it("falha quando a resposta não é 200", async () => {

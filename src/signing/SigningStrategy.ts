@@ -21,9 +21,7 @@
  * @returns a assinatura digital em formato bruto (não Base64), ou uma
  *   promessa que resolve para ela
  */
-export type SigningStrategy = (
-  data: Uint8Array,
-) => Uint8Array | Promise<Uint8Array>;
+export type SigningStrategy = (data: Uint8Array) => Uint8Array | Promise<Uint8Array>;
 
 /**
  * Convenção opcional: uma {@link SigningStrategy} que mantém um recurso

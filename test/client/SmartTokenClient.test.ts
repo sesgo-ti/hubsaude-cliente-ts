@@ -196,9 +196,7 @@ describe("createSmartTokenClient + obtainToken — fluxo completo", () => {
       const params = new URLSearchParams(receivedBody);
       expect(params.get("grant_type")).toBe("client_credentials");
       expect(params.get("client_id")).toBe("meu-cliente");
-      expect(params.get("client_assertion_type")).toBe(
-        "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
-      );
+      expect(params.get("client_assertion_type")).toBe("urn:ietf:params:oauth:client-assertion-type:jwt-bearer");
       expect(params.get("scope")).toBe("system/Patient.rs");
 
       const assertion = params.get("client_assertion");
@@ -727,7 +725,21 @@ describe("createSmartTokenClient — mTLS com consistência chave-certificado", 
     const { path: key1 } = await generateRsaKeyFile();
     execFileSync(
       "openssl",
-      ["req", "-x509", "-newkey", "rsa:2048", "-keyout", p("outra-key.pem"), "-out", p("cert-nao-relacionado.pem"), "-days", "1", "-nodes", "-subj", "/CN=outro"],
+      [
+        "req",
+        "-x509",
+        "-newkey",
+        "rsa:2048",
+        "-keyout",
+        p("outra-key.pem"),
+        "-out",
+        p("cert-nao-relacionado.pem"),
+        "-days",
+        "1",
+        "-nodes",
+        "-subj",
+        "/CN=outro",
+      ],
       { stdio: "ignore" },
     );
 
@@ -746,7 +758,21 @@ describe("createSmartTokenClient — mTLS com consistência chave-certificado", 
     const certPath = p("par-cert.pem");
     execFileSync(
       "openssl",
-      ["req", "-x509", "-newkey", "rsa:2048", "-keyout", keyPath, "-out", certPath, "-days", "1", "-nodes", "-subj", "/CN=par-valido"],
+      [
+        "req",
+        "-x509",
+        "-newkey",
+        "rsa:2048",
+        "-keyout",
+        keyPath,
+        "-out",
+        certPath,
+        "-days",
+        "1",
+        "-nodes",
+        "-subj",
+        "/CN=par-valido",
+      ],
       { stdio: "ignore" },
     );
 
@@ -766,7 +792,21 @@ describe("createSmartTokenClient — integração TLS/mTLS de ponta a ponta (§1
     const certPath = p(`${prefix}-cert.pem`);
     execFileSync(
       "openssl",
-      ["req", "-x509", "-newkey", "rsa:2048", "-keyout", keyPath, "-out", certPath, "-days", "1", "-nodes", "-subj", `/CN=${cn}`],
+      [
+        "req",
+        "-x509",
+        "-newkey",
+        "rsa:2048",
+        "-keyout",
+        keyPath,
+        "-out",
+        certPath,
+        "-days",
+        "1",
+        "-nodes",
+        "-subj",
+        `/CN=${cn}`,
+      ],
       { stdio: "ignore" },
     );
     return { keyPath, certPath };
@@ -801,15 +841,36 @@ describe("createSmartTokenClient — integração TLS/mTLS de ponta a ponta (§1
     );
   }
 
-  function opensslSignedBy(prefix: string, cn: string, caKeyPath: string, caCertPath: string): { keyPath: string; certPath: string } {
+  function opensslSignedBy(
+    prefix: string,
+    cn: string,
+    caKeyPath: string,
+    caCertPath: string,
+  ): { keyPath: string; certPath: string } {
     const keyPath = p(`${prefix}-key.pem`);
     const csrPath = p(`${prefix}.csr`);
     const certPath = p(`${prefix}-cert.pem`);
     execFileSync("openssl", ["genrsa", "-out", keyPath, "2048"], { stdio: "ignore" });
-    execFileSync("openssl", ["req", "-new", "-key", keyPath, "-out", csrPath, "-subj", `/CN=${cn}`], { stdio: "ignore" });
+    execFileSync("openssl", ["req", "-new", "-key", keyPath, "-out", csrPath, "-subj", `/CN=${cn}`], {
+      stdio: "ignore",
+    });
     execFileSync(
       "openssl",
-      ["x509", "-req", "-in", csrPath, "-CA", caCertPath, "-CAkey", caKeyPath, "-CAcreateserial", "-out", certPath, "-days", "1"],
+      [
+        "x509",
+        "-req",
+        "-in",
+        csrPath,
+        "-CA",
+        caCertPath,
+        "-CAkey",
+        caKeyPath,
+        "-CAcreateserial",
+        "-out",
+        certPath,
+        "-days",
+        "1",
+      ],
       { stdio: "ignore" },
     );
     return { keyPath, certPath };
@@ -1014,7 +1075,21 @@ describe("createSmartTokenClient — higiene de segredos em memória (RNF-03)", 
     const p12Path = p("pfx-hygiene.p12");
     execFileSync(
       "openssl",
-      ["req", "-x509", "-newkey", "rsa:2048", "-keyout", keyPath, "-out", certPath, "-days", "1", "-nodes", "-subj", "/CN=pfx-teste"],
+      [
+        "req",
+        "-x509",
+        "-newkey",
+        "rsa:2048",
+        "-keyout",
+        keyPath,
+        "-out",
+        certPath,
+        "-days",
+        "1",
+        "-nodes",
+        "-subj",
+        "/CN=pfx-teste",
+      ],
       { stdio: "ignore" },
     );
     execFileSync(

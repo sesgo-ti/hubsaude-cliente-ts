@@ -7,10 +7,7 @@ import { constants, createPrivateKey, X509Certificate, type KeyObject } from "no
 import forge from "node-forge";
 import { SmartTokenError } from "../errors/SmartTokenError.js";
 import { loadPrivateKey, loadPrivateKeyFromString } from "./PemLoader.js";
-import {
-  createPrivateKeySigningStrategy,
-  type PrivateKeySigningOptions,
-} from "./PrivateKeySigningStrategy.js";
+import { createPrivateKeySigningStrategy, type PrivateKeySigningOptions } from "./PrivateKeySigningStrategy.js";
 import type { SigningStrategy } from "./SigningStrategy.js";
 
 /**
@@ -36,10 +33,7 @@ import type { SigningStrategy } from "./SigningStrategy.js";
  * @param options - opções de algoritmo (ver {@link PrivateKeySigningOptions})
  * @returns estratégia de assinatura configurada
  */
-export function fromPrivateKey(
-  privateKey: KeyObject,
-  options?: PrivateKeySigningOptions,
-): SigningStrategy {
+export function fromPrivateKey(privateKey: KeyObject, options?: PrivateKeySigningOptions): SigningStrategy {
   return createPrivateKeySigningStrategy(privateKey, options);
 }
 
@@ -115,6 +109,7 @@ export interface Pkcs12Material {
  * do próprio node-forge e sempre estarão presentes.
  */
 function oid(name: "pkcs8ShroudedKeyBag" | "keyBag" | "certBag"): string {
+  // eslint-disable-next-line security/detect-object-injection -- `name` é união de 3 literais fixos, não string arbitrária
   const value = forge.pki.oids[name];
   if (value === undefined) {
     throw new Error(`OID desconhecido no node-forge: ${name}`);
@@ -160,11 +155,7 @@ export function loadPkcs12(pfx: Buffer, passphrase: string): Pkcs12Material {
  * @param options - opções de algoritmo
  * @returns estratégia de assinatura configurada
  */
-export function fromPkcs12(
-  pfx: Buffer,
-  passphrase: string,
-  options?: PrivateKeySigningOptions,
-): SigningStrategy {
+export function fromPkcs12(pfx: Buffer, passphrase: string, options?: PrivateKeySigningOptions): SigningStrategy {
   const { privateKey } = loadPkcs12(pfx, passphrase);
   return createPrivateKeySigningStrategy(privateKey, options);
 }

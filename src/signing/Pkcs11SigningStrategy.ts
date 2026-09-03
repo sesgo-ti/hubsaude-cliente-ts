@@ -90,10 +90,7 @@ async function loadPkcs11Module(): Promise<Pkcs11Module> {
     return mod.default;
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ERR_MODULE_NOT_FOUND") {
-      throw new SmartTokenError(
-        "pkcs11js não está instalado. Para usar HSM/PKCS#11, rode: npm install pkcs11js",
-        err,
-      );
+      throw new SmartTokenError("pkcs11js não está instalado. Para usar HSM/PKCS#11, rode: npm install pkcs11js", err);
     }
     throw err;
   }

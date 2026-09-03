@@ -184,7 +184,7 @@ const client = await createSmartTokenClient({
 
 A chave é localizada por `keyLabel` (`CKA_LABEL`), `keyId` (`CKA_ID`),
 ou os dois juntos — útil porque muitos HSMs/smart cards pareiam chave
-privada e certificado pelo `CKA_ID` em vez de (ou além d)o label, e
+privada e certificado pelo `CKA_ID` em vez de (ou além do label), e
 alguns fabricantes não preenchem o label de forma consistente. Ao menos
 um dos dois é obrigatório.
 

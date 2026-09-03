@@ -24,7 +24,7 @@ jobs:
         # sem deixar de validar contra o que a maioria já roda em produção.
         node-version: ["20.x", "22.x", "24.x"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v4
         with:

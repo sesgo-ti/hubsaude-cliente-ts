@@ -3,9 +3,10 @@
  * Copyright 2025-2026 Estado de Goiás (SES-GO) e Universidade Federal de Goiás (UFG).
  */
 
+import type { Attribute } from "pkcs11js";
 import { SigningError } from "../errors/SigningError.js";
 import { SmartTokenError } from "../errors/SmartTokenError.js";
-import type { SigningStrategy } from "./SigningStrategy.js";
+import type { CloseableSigningStrategy } from "./SigningStrategy.js";
 
 /**
  * Opções de {@link fromPkcs11}.
@@ -17,7 +18,13 @@ import type { SigningStrategy } from "./SigningStrategy.js";
  *   `Buffer`: a API nativa do PKCS#11 (`C_Login`) só aceita `string` —
  *   mesma limitação de plataforma já documentada para
  *   `clientPfxPassphrase`
- * @property keyLabel - `CKA_LABEL` da chave privada a usar
+ * @property keyLabel - `CKA_LABEL` da chave privada a usar. Ao menos um
+ *   entre `keyLabel`/`keyId` é obrigatório; informar os dois busca a
+ *   chave que combine com ambos
+ * @property keyId - `CKA_ID` da chave privada a usar — muitos
+ *   HSMs/smart cards pareiam chave privada e certificado por esse
+ *   identificador binário compartilhado em vez de (ou além d)o label,
+ *   e alguns fabricantes não preenchem o label de forma consistente
  * @property slot - índice do slot a usar (posição em
  *   `C_GetSlotList`). Mutuamente exclusivo com `tokenLabel`; se nenhum
  *   dos dois for informado, usa o primeiro slot com token presente
@@ -29,7 +36,8 @@ import type { SigningStrategy } from "./SigningStrategy.js";
 export interface Pkcs11Options {
   library: string;
   pin: string;
-  keyLabel: string;
+  keyLabel?: string;
+  keyId?: Buffer;
   slot?: number;
   tokenLabel?: string;
   jwtAlgorithm?: string;
@@ -187,15 +195,36 @@ function findSlot(pkcs11: Pkcs11Module, p11: Pkcs11Instance, options: Pkcs11Opti
   return firstSlot;
 }
 
-function findPrivateKey(pkcs11: Pkcs11Module, p11: Pkcs11Instance, session: Buffer, keyLabel: string): Buffer {
-  p11.C_FindObjectsInit(session, [
-    { type: pkcs11.CKA_CLASS, value: pkcs11.CKO_PRIVATE_KEY },
-    { type: pkcs11.CKA_LABEL, value: keyLabel },
-  ]);
+function findPrivateKey(
+  pkcs11: Pkcs11Module,
+  p11: Pkcs11Instance,
+  session: Buffer,
+  options: Pick<Pkcs11Options, "keyLabel" | "keyId">,
+): Buffer {
+  if (options.keyLabel === undefined && options.keyId === undefined) {
+    throw new Error("Defina keyLabel e/ou keyId para localizar a chave privada PKCS#11");
+  }
+
+  const template: Attribute[] = [{ type: pkcs11.CKA_CLASS, value: pkcs11.CKO_PRIVATE_KEY }];
+  if (options.keyLabel !== undefined) {
+    template.push({ type: pkcs11.CKA_LABEL, value: options.keyLabel });
+  }
+  if (options.keyId !== undefined) {
+    template.push({ type: pkcs11.CKA_ID, value: options.keyId });
+  }
+
+  const description = [
+    options.keyLabel !== undefined ? `label '${options.keyLabel}'` : undefined,
+    options.keyId !== undefined ? `id '${options.keyId.toString("hex")}'` : undefined,
+  ]
+    .filter((part) => part !== undefined)
+    .join(" e ");
+
+  p11.C_FindObjectsInit(session, template);
   try {
     const key = p11.C_FindObjects(session);
     if (key === null) {
-      throw new SmartTokenError(`Nenhuma chave privada com label '${keyLabel}' encontrada no token`);
+      throw new SmartTokenError(`Nenhuma chave privada com ${description} encontrada no token`);
     }
     return key;
   } finally {
@@ -243,21 +272,22 @@ function initializeOnce(pkcs11: Pkcs11Module, p11: Pkcs11Instance, library: stri
  * A sessão com o token é aberta e autenticada uma única vez, nesta
  * chamada (fail-fast: PIN incorreto ou chave inexistente falham aqui,
  * não na primeira assinatura — RF-12.3) e mantida aberta para todas as
- * assinaturas subsequentes feitas pela `SigningStrategy` devolvida, pela
- * vida do processo. Não há um mecanismo de fechamento explícito — a
- * interface `SigningStrategy` não tem um método `close()` (nenhuma das
- * outras estratégias desta lib precisa de um), então a sessão permanece
- * aberta até o processo encerrar. Isso é aceitável para o padrão de uso
- * desta lib (instância de cliente de vida longa, reaproveitada), mas
- * vale saber se você reconstrói clientes com frequência.
+ * assinaturas subsequentes feitas pela `SigningStrategy` devolvida.
+ * `createSmartTokenClient` invoca `close()` automaticamente ao fechar o
+ * cliente (ver {@link CloseableSigningStrategy}) — faz logout e fecha a
+ * sessão PKCS#11, mas não chama `C_Finalize` no módulo (o módulo nativo
+ * é um singleton por processo, possivelmente compartilhado com outras
+ * estratégias PKCS#11 vivas no mesmo processo; derrubá-lo aqui as
+ * quebraria).
  *
  * @param options - configuração de acesso ao HSM/token
- * @returns uma {@link SigningStrategy} assíncrona pronta para uso
+ * @returns uma {@link CloseableSigningStrategy} assíncrona pronta para uso
  * @throws {SmartTokenError} se `pkcs11js` não estiver instalado, o
  *   módulo/slot/token/chave não forem encontrados, ou o PIN for inválido
+ * @throws {Error} se nem `keyLabel` nem `keyId` forem informados
  * @throws {SigningError} se uma operação de assinatura específica falhar
  */
-export async function fromPkcs11(options: Pkcs11Options): Promise<SigningStrategy> {
+export async function fromPkcs11(options: Pkcs11Options): Promise<CloseableSigningStrategy> {
   const pkcs11 = await loadPkcs11Module();
   const jwtAlgorithm = options.jwtAlgorithm ?? "RS384";
   const { mechanism, parameter } = jwtAlgorithmToPkcs11(pkcs11, jwtAlgorithm);
@@ -286,9 +316,9 @@ export async function fromPkcs11(options: Pkcs11Options): Promise<SigningStrateg
     }
   }
 
-  const privateKey = findPrivateKey(pkcs11, p11, session, options.keyLabel);
+  const privateKey = findPrivateKey(pkcs11, p11, session, options);
 
-  return (data: Uint8Array): Promise<Uint8Array> => {
+  const strategy: CloseableSigningStrategy = (data: Uint8Array): Promise<Uint8Array> => {
     return new Promise((resolve, reject) => {
       try {
         p11.C_SignInit(session, { mechanism, parameter }, privateKey);
@@ -309,4 +339,20 @@ export async function fromPkcs11(options: Pkcs11Options): Promise<SigningStrateg
       });
     });
   };
+
+  strategy.close = (): void => {
+    // Logout best-effort: login é uma propriedade do token, não da
+    // sessão (mesmo motivo documentado acima para initializeOnce/login)
+    // — outra sessão no mesmo processo pode já ter deslogado o token.
+    // Fechamento de recurso não deveria lançar e impedir o resto do
+    // encerramento do cliente, então qualquer erro aqui é ignorado.
+    try {
+      p11.C_Logout(session);
+    } catch {
+      // ignorado de propósito — ver comentário acima
+    }
+    p11.C_CloseSession(session);
+  };
+
+  return strategy;
 }

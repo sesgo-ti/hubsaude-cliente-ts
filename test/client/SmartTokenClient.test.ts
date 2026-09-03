@@ -1039,3 +1039,35 @@ describe("createSmartTokenClient — higiene de segredos em memória (RNF-03)", 
     }
   });
 });
+
+describe("createSmartTokenClient — close() é best-effort mesmo com signingStrategy.close() falhando", () => {
+  it("client.close() resolve sem lançar quando signingStrategy.close() lança", async () => {
+    const signingStrategy = Object.assign(() => new Uint8Array(), {
+      close: () => {
+        throw new Error("falha simulada ao fechar a estratégia");
+      },
+    });
+
+    const client = await createSmartTokenClient({
+      tokenEndpoint: "https://localhost:9999/token",
+      clientId: "c",
+      signingStrategy,
+    });
+
+    await expect(client.close()).resolves.toBeUndefined();
+  });
+
+  it("client.close() resolve sem lançar quando signingStrategy.close() rejeita", async () => {
+    const signingStrategy = Object.assign(() => new Uint8Array(), {
+      close: () => Promise.reject(new Error("falha simulada ao fechar a estratégia (async)")),
+    });
+
+    const client = await createSmartTokenClient({
+      tokenEndpoint: "https://localhost:9999/token",
+      clientId: "c",
+      signingStrategy,
+    });
+
+    await expect(client.close()).resolves.toBeUndefined();
+  });
+});

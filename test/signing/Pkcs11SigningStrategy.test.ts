@@ -16,12 +16,17 @@ import { fromPkcs11 } from "../../src/signing/Pkcs11SigningStrategy.js";
 
 /**
  * Estes testes exigem o SoftHSM2 instalado no ambiente (`softhsm2-util`
- * e `/usr/lib/softhsm/libsofthsm2.so`) — um HSM em software, real o
- * bastante para exercitar o protocolo PKCS#11 de ponta a ponta (sem
- * mock). É um requisito de ambiente de desenvolvimento adicional desta
- * lib, análogo ao `openssl` já exigido pelos testes de TLS/mTLS.
+ * e o módulo `libsofthsm2.so`) — um HSM em software, real o bastante
+ * para exercitar o protocolo PKCS#11 de ponta a ponta (sem mock). É um
+ * requisito de ambiente de desenvolvimento adicional desta lib, análogo
+ * ao `openssl` já exigido pelos testes de TLS/mTLS.
+ *
+ * O caminho do módulo varia por distribuição (`/usr/lib/softhsm/...`,
+ * `/usr/lib/x86_64-linux-gnu/softhsm/...`, `/usr/lib64/pkcs11/...`,
+ * etc.) — defina `SOFTHSM_LIB` para o caminho correto no seu ambiente
+ * se o padrão não funcionar.
  */
-const SOFTHSM_LIB = "/usr/lib/softhsm/libsofthsm2.so";
+const SOFTHSM_LIB = process.env.SOFTHSM_LIB ?? "/usr/lib/softhsm/libsofthsm2.so";
 const SO_PIN = "0000";
 const PIN = "123456";
 

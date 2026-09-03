@@ -24,3 +24,19 @@
 export type SigningStrategy = (
   data: Uint8Array,
 ) => Uint8Array | Promise<Uint8Array>;
+
+/**
+ * Convenção opcional: uma {@link SigningStrategy} que mantém um recurso
+ * externo (ex.: uma sessão PKCS#11 aberta) pode anexar um método `close`
+ * a si mesma — funções são objetos em JS/TS, então isso não exige mudar
+ * o tipo `SigningStrategy` nem quebra estratégias existentes.
+ * `SmartTokenClient.close()` invoca `close()` automaticamente, se
+ * presente, ao encerrar o cliente.
+ *
+ * Só {@link fromPkcs11} usa isso hoje — estratégias de chave em memória
+ * (`fromPrivateKey`, `fromPkcs12`) não mantêm recurso nenhum para
+ * liberar.
+ */
+export type CloseableSigningStrategy = SigningStrategy & {
+  close?: () => void | Promise<void>;
+};

@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [develop]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Piso declarado em `engines.node` (>=20), a LTS ativa atual e a
+        # LTS mais recente — cobre quem ainda está no mínimo suportado
+        # sem deixar de validar contra o que a maioria já roda em produção.
+        node-version: ["20.x", "22.x", "24.x"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      # Os testes de PKCS#11 rodam contra um HSM em software real
+      # (SoftHSM2), não mockado — precisa estar instalado no runner. O
+      # caminho do módulo (`libsofthsm2.so`) varia por distribuição, por
+      # isso é descoberto dinamicamente em vez de hardcoded (ver
+      # `SOFTHSM_LIB` em test/signing/Pkcs11SigningStrategy.test.ts).
+      - name: Instalar SoftHSM2
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y softhsm2
+          # O módulo PKCS#11 (libsofthsm2.so) pertence ao pacote
+          # `libsofthsm2` (dependência de `softhsm2`, que só traz os
+          # utilitários como `softhsm2-util`) — buscar em `softhsm2` aqui
+          # encontra nada.
+          lib="$(dpkg -L libsofthsm2 | grep -m1 'libsofthsm2\.so$')"
+          test -n "$lib" || { echo "libsofthsm2.so não encontrado" >&2; exit 1; }
+          echo "SOFTHSM_LIB=$lib" >> "$GITHUB_ENV"
+
+      # `typescript-eslint` 8.x ainda recusa carregar contra `typescript@7.x`
+      # (checagem de versão feita pelo próprio pacote na importação), o que
+      # deixa `npm ci` sem flag adicional em ERESOLVE — instala com
+      # --legacy-peer-deps até o ecossistema alcançar o TS 7.
+      - name: Instalar dependências
+        run: npm ci --legacy-peer-deps
+
+      - name: Checagem de tipos
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Formatação
+        run: npm run format:check
+
+      - name: Regras de dependência entre módulos
+        run: npm run depcruise
+
+      - name: Testes com cobertura
+        run: npm run test:coverage
+
+      - name: Publicar relatório de cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-node-${{ matrix.node-version }}
+          path: coverage/
+          if-no-files-found: ignore

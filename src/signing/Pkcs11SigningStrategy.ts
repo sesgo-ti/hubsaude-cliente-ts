@@ -3,6 +3,7 @@
  * Copyright 2025-2026 Estado de Goiás (SES-GO) e Universidade Federal de Goiás (UFG).
  */
 
+import { createHash } from "node:crypto";
 import type { Attribute } from "pkcs11js";
 import { SigningError } from "../errors/SigningError.js";
 import { SmartTokenError } from "../errors/SmartTokenError.js";
@@ -99,20 +100,36 @@ async function loadPkcs11Module(): Promise<Pkcs11Module> {
 interface Pkcs11Mechanism {
   mechanism: number;
   parameter?: { type: number; hashAlg: number; mgf: number; saltLen: number };
+  /**
+   * Quando presente, o hash é calculado neste processo (via
+   * `node:crypto`) antes de `C_Sign` — o mecanismo é o `CKM_ECDSA` puro,
+   * que espera um digest já pronto como entrada, não os dados brutos.
+   * Ausente para os mecanismos RSA (combinam hash e assinatura num único
+   * passo no próprio token).
+   */
+  digestAlgorithm?: "sha256" | "sha384" | "sha512";
 }
 
 /**
  * Converte um algoritmo JWT (JWA) para o mecanismo PKCS#11
  * correspondente.
  *
- * Todos os mecanismos escolhidos combinam hash e assinatura num único
- * passo (ex.: `CKM_SHA384_RSA_PKCS`, `CKM_ECDSA_SHA384`) — o token
- * calcula o hash internamente, a lib nunca envia um digest pré-calculado.
- * Confirmado empiricamente contra um SoftHSM2 real: `CKM_ECDSA_SHA384`
- * já devolve a assinatura no formato bruto `R||S` (96 bytes para P-384),
- * sem conversão adicional necessária — o mesmo formato que
- * `dsaEncoding: "ieee-p1363"` produz em `node:crypto` para o caminho de
- * chave em memória.
+ * Os mecanismos RSA combinam hash e assinatura num único passo (ex.:
+ * `CKM_SHA384_RSA_PKCS`) — o token calcula o hash internamente. Já os
+ * mecanismos ECDSA usam o `CKM_ECDSA` **puro** (sem hash embutido): o
+ * hash é calculado aqui mesmo, em `node:crypto`, antes de chamar
+ * `C_Sign` — ver `digestAlgorithm` em {@link Pkcs11Mechanism}. Motivo:
+ * nem todo HSM/token oferece as variantes combinadas de ECDSA
+ * (`CKM_ECDSA_SHA256`/`384`/`512`); `CKM_ECDSA` puro é o mínimo
+ * denominador comum entre implementações PKCS#11 de fabricantes
+ * variados — a mesma estratégia que o `SunPKCS11` do JDK usa por trás
+ * dos panos quando o token não suporta o mecanismo combinado.
+ *
+ * Confirmado empiricamente contra um SoftHSM2 real: `CKM_ECDSA` (puro,
+ * recebendo o digest já calculado) devolve a assinatura no mesmo
+ * formato bruto `R||S` (96 bytes para P-384) que as variantes
+ * combinadas — o formato de saída do PKCS#11 para ECDSA independe de
+ * onde o hash é calculado.
  *
  * @throws {SmartTokenError} se o algoritmo não for reconhecido
  */
@@ -146,11 +163,11 @@ function jwtAlgorithmToPkcs11(pkcs11: Pkcs11Module, jwtAlgorithm: string): Pkcs1
         parameter: rsaPss(pkcs11.CKM_SHA512, pkcs11.CKG_MGF1_SHA512, PSS_SALT_LEN_512),
       };
     case "ES256":
-      return { mechanism: pkcs11.CKM_ECDSA_SHA256 };
+      return { mechanism: pkcs11.CKM_ECDSA, digestAlgorithm: "sha256" };
     case "ES384":
-      return { mechanism: pkcs11.CKM_ECDSA_SHA384 };
+      return { mechanism: pkcs11.CKM_ECDSA, digestAlgorithm: "sha384" };
     case "ES512":
-      return { mechanism: pkcs11.CKM_ECDSA_SHA512 };
+      return { mechanism: pkcs11.CKM_ECDSA, digestAlgorithm: "sha512" };
     default:
       throw new SmartTokenError(
         `Algoritmo JWT não suportado para PKCS#11: ${jwtAlgorithm}. Algoritmos válidos: ` +
@@ -289,7 +306,7 @@ function initializeOnce(pkcs11: Pkcs11Module, p11: Pkcs11Instance, library: stri
 export async function fromPkcs11(options: Pkcs11Options): Promise<CloseableSigningStrategy> {
   const pkcs11 = await loadPkcs11Module();
   const jwtAlgorithm = options.jwtAlgorithm ?? "RS384";
-  const { mechanism, parameter } = jwtAlgorithmToPkcs11(pkcs11, jwtAlgorithm);
+  const { mechanism, parameter, digestAlgorithm } = jwtAlgorithmToPkcs11(pkcs11, jwtAlgorithm);
 
   const p11: Pkcs11Instance = new pkcs11.PKCS11();
   try {
@@ -333,6 +350,9 @@ export async function fromPkcs11(options: Pkcs11Options): Promise<CloseableSigni
 
   const strategy: CloseableSigningStrategy = (data: Uint8Array): Promise<Uint8Array> => {
     return new Promise((resolve, reject) => {
+      // ECDSA usa o mecanismo puro (`digestAlgorithm` presente): o hash
+      // é calculado aqui, não pelo token — ver jwtAlgorithmToPkcs11.
+      const dataToSign = digestAlgorithm ? createHash(digestAlgorithm).update(data).digest() : Buffer.from(data);
       try {
         p11.C_SignInit(session, { mechanism, parameter }, privateKey);
       } catch (err) {
@@ -343,7 +363,7 @@ export async function fromPkcs11(options: Pkcs11Options): Promise<CloseableSigni
       // real pode envolver round-trip de I/O real (USB, rede) — ao
       // contrário de `crypto.sign` em memória (CPU-only, rápido), não
       // deveria bloquear o event loop do Node.
-      p11.C_Sign(session, Buffer.from(data), Buffer.alloc(SIGNATURE_BUFFER_SIZE), (err, signature) => {
+      p11.C_Sign(session, dataToSign, Buffer.alloc(SIGNATURE_BUFFER_SIZE), (err, signature) => {
         if (err) {
           reject(new SigningError(`Falha ao assinar dados via PKCS#11 (mecanismo ${jwtAlgorithm})`, err));
           return;

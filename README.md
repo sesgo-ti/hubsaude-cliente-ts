@@ -287,7 +287,7 @@ Em vez de fixar `tokenEndpoint`, informe a base FHIR — o cliente
 resolve via `.well-known/smart-configuration`:
 
 ```ts
-fhirBase: "https://hub.saude.go.gov.br";
+const options = { fhirBase: "https://hub.saude.go.gov.br" };
 ```
 
 ### `serverTrustAnchor` — quando usar

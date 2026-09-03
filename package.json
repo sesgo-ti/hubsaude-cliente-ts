@@ -26,6 +26,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:integration": "vitest run --config vitest.integration.config.ts it/SmartTokenClientSimulador.test.ts",
+    "test:integration:homolog": "vitest run --config vitest.integration.config.ts it/SmartTokenClientHomolog.test.ts",
     "test:mutation": "stryker run --inPlace",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

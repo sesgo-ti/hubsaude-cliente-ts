@@ -31,6 +31,17 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: npm
 
+      # Os testes de PKCS#11 rodam contra um HSM em software real
+      # (SoftHSM2), não mockado — precisa estar instalado no runner. O
+      # caminho do módulo (`libsofthsm2.so`) varia por distribuição, por
+      # isso é descoberto dinamicamente em vez de hardcoded (ver
+      # `SOFTHSM_LIB` em test/signing/Pkcs11SigningStrategy.test.ts).
+      - name: Instalar SoftHSM2
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y softhsm2
+          echo "SOFTHSM_LIB=$(dpkg -L softhsm2 | grep -m1 libsofthsm2.so$)" >> "$GITHUB_ENV"
+
       # `typescript-eslint` 8.x ainda recusa carregar contra `typescript@7.x`
       # (checagem de versão feita pelo próprio pacote na importação), o que
       # deixa `npm ci` sem flag adicional em ERESOLVE — instala com

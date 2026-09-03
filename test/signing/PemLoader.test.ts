@@ -1,8 +1,9 @@
-import { execFileSync } from "node:child_process";
 import { generateKeyPairSync } from "node:crypto";
+import { writeFileSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import forge from "node-forge";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { SmartTokenError } from "../../src/errors/SmartTokenError.js";
 import {
@@ -40,31 +41,26 @@ function generateRsaPem(
   return privateKey as unknown as string;
 }
 
-/** Gera um certificado autoassinado via CLI do OpenSSL, com validade customizável. */
-function generateSelfSignedCert(notBefore: string, notAfter: string): string {
-  const keyPath = fixturePath(`cert-key-${notBefore}.pem`);
-  const certPath = fixturePath(`cert-${notBefore}.pem`);
-  execFileSync(
-    "openssl",
-    [
-      "req",
-      "-x509",
-      "-newkey",
-      "rsa:2048",
-      "-keyout",
-      keyPath,
-      "-out",
-      certPath,
-      "-nodes",
-      "-subj",
-      "/CN=teste-pemloader",
-      "-not_before",
-      notBefore,
-      "-not_after",
-      notAfter,
-    ],
-    { stdio: "ignore" },
-  );
+/**
+ * Gera um certificado autoassinado com validade customizável, via
+ * `node-forge` (já dependência do projeto) em vez da CLI do OpenSSL —
+ * `notBefore`/`notAfter` como objetos `Date` nativos, sem depender de
+ * uma versão específica do OpenSSL instalada no ambiente.
+ */
+function generateSelfSignedCert(notBefore: Date, notAfter: Date): string {
+  const keys = forge.pki.rsa.generateKeyPair(2048);
+  const cert = forge.pki.createCertificate();
+  cert.publicKey = keys.publicKey;
+  cert.serialNumber = "01";
+  cert.validity.notBefore = notBefore;
+  cert.validity.notAfter = notAfter;
+  const attrs = [{ name: "commonName", value: "teste-pemloader" }];
+  cert.setSubject(attrs);
+  cert.setIssuer(attrs);
+  cert.sign(keys.privateKey, forge.md.sha256.create());
+
+  const certPath = fixturePath(`cert-${notBefore.getTime()}.pem`);
+  writeFileSync(certPath, forge.pki.certificateToPem(cert));
   return certPath;
 }
 
@@ -180,7 +176,7 @@ describe("clearPassword", () => {
 
 describe("loadCertificate / loadCertificateFromString", () => {
   it("carrega certificado válido de arquivo", async () => {
-    const certPath = generateSelfSignedCert("20240101000000Z", "20990101000000Z");
+    const certPath = generateSelfSignedCert(new Date("2024-01-01T00:00:00Z"), new Date("2099-01-01T00:00:00Z"));
 
     const cert = await loadCertificate(certPath);
 
@@ -188,7 +184,7 @@ describe("loadCertificate / loadCertificateFromString", () => {
   });
 
   it("carrega certificado válido de string", async () => {
-    const certPath = generateSelfSignedCert("20240101000000Z", "20990101000000Z");
+    const certPath = generateSelfSignedCert(new Date("2024-01-01T00:00:00Z"), new Date("2099-01-01T00:00:00Z"));
     const pem = await import("node:fs/promises").then((fs) => fs.readFile(certPath, "utf8"));
 
     const cert = loadCertificateFromString(pem, "<string>");
@@ -197,13 +193,13 @@ describe("loadCertificate / loadCertificateFromString", () => {
   });
 
   it("falha com SmartTokenError para certificado expirado", async () => {
-    const certPath = generateSelfSignedCert("20200101000000Z", "20200601000000Z");
+    const certPath = generateSelfSignedCert(new Date("2020-01-01T00:00:00Z"), new Date("2020-06-01T00:00:00Z"));
 
     await expect(loadCertificate(certPath)).rejects.toThrow(SmartTokenError);
   });
 
   it("falha com SmartTokenError para certificado ainda não válido", async () => {
-    const certPath = generateSelfSignedCert("20990101000000Z", "21000101000000Z");
+    const certPath = generateSelfSignedCert(new Date("2099-01-01T00:00:00Z"), new Date("2100-01-01T00:00:00Z"));
 
     await expect(loadCertificate(certPath)).rejects.toThrow(SmartTokenError);
   });

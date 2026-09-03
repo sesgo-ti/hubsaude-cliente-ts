@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [develop]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Piso declarado em `engines.node` (>=20), a LTS ativa atual e a
+        # LTS mais recente — cobre quem ainda está no mínimo suportado
+        # sem deixar de validar contra o que a maioria já roda em produção.
+        node-version: ["20.x", "22.x", "24.x"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      # `typescript-eslint` 8.x ainda recusa carregar contra `typescript@7.x`
+      # (checagem de versão feita pelo próprio pacote na importação), o que
+      # deixa `npm ci` sem flag adicional em ERESOLVE — instala com
+      # --legacy-peer-deps até o ecossistema alcançar o TS 7.
+      - name: Instalar dependências
+        run: npm ci --legacy-peer-deps
+
+      - name: Checagem de tipos
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Formatação
+        run: npm run format:check
+
+      - name: Regras de dependência entre módulos
+        run: npm run depcruise
+
+      - name: Testes com cobertura
+        run: npm run test:coverage
+
+      - name: Publicar relatório de cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-node-${{ matrix.node-version }}
+          path: coverage/
+          if-no-files-found: ignore

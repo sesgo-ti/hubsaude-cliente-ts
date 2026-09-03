@@ -15,10 +15,7 @@ export {
   loadCertificate,
   loadCertificateFromString,
 } from "./signing/PemLoader.js";
-export {
-  createPrivateKeySigningStrategy,
-  DEFAULT_DIGEST,
-} from "./signing/PrivateKeySigningStrategy.js";
+export { createPrivateKeySigningStrategy, DEFAULT_DIGEST } from "./signing/PrivateKeySigningStrategy.js";
 export type { PrivateKeySigningOptions } from "./signing/PrivateKeySigningStrategy.js";
 export {
   fromPrivateKey,

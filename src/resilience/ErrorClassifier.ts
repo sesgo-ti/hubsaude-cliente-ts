@@ -234,9 +234,7 @@ export function sanitizeErrorResponse(responseBody: string | null | undefined): 
   const redacted = responseBody
     .replace(/("(?:access_token|token)")\s*:\s*"[^"]*"/g, '$1:"[REDACTED]"')
     .replace(/(access_token|token)=[^&\s]*/g, "$1=[REDACTED]");
-  return redacted.length > MAX_ERROR_RESPONSE_LENGTH
-    ? `${redacted.slice(0, MAX_ERROR_RESPONSE_LENGTH)}...`
-    : redacted;
+  return redacted.length > MAX_ERROR_RESPONSE_LENGTH ? `${redacted.slice(0, MAX_ERROR_RESPONSE_LENGTH)}...` : redacted;
 }
 
 /**

@@ -66,8 +66,6 @@ describe("índice público (src/index.ts)", () => {
     // burlar o `private` do compilador, chamando o construtor direto.
     const Ctor = pkg.SmartTokenClient as unknown as new (...args: unknown[]) => unknown;
     expect(() => new Ctor()).toThrow("SmartTokenClient não tem construtor público");
-    expect(() => new Ctor(Symbol("token-forjado"), {}, {})).toThrow(
-      "SmartTokenClient não tem construtor público",
-    );
+    expect(() => new Ctor(Symbol("token-forjado"), {}, {})).toThrow("SmartTokenClient não tem construtor público");
   });
 });

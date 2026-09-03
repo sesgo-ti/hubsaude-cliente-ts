@@ -100,6 +100,7 @@ export function clearPassword(password: Buffer | undefined): void {
  * @throws {RangeError} se a chave estiver abaixo do tamanho mínimo aceito
  */
 export async function loadPrivateKey(path: string, password?: Buffer): Promise<KeyObject> {
+  // eslint-disable-next-line security/detect-non-literal-fs-filename -- path é config do próprio chamador da lib, não entrada externa não confiável
   const raw = await readFile(path);
   try {
     return loadPrivateKeyFromBuffer(raw, password, path);
@@ -123,11 +124,7 @@ export async function loadPrivateKey(path: string, password?: Buffer): Promise<K
  * @throws {SmartTokenError} nas mesmas condições de {@link loadPrivateKey}
  * @throws {RangeError} se a chave estiver abaixo do tamanho mínimo aceito
  */
-export function loadPrivateKeyFromString(
-  pem: string,
-  password: Buffer | undefined,
-  source: string,
-): KeyObject {
+export function loadPrivateKeyFromString(pem: string, password: Buffer | undefined, source: string): KeyObject {
   const buffer = Buffer.from(pem, "utf8");
   try {
     return loadPrivateKeyFromBuffer(buffer, password, source);
@@ -137,11 +134,7 @@ export function loadPrivateKeyFromString(
   }
 }
 
-function loadPrivateKeyFromBuffer(
-  pemBuffer: Buffer,
-  password: Buffer | undefined,
-  source: string,
-): KeyObject {
+function loadPrivateKeyFromBuffer(pemBuffer: Buffer, password: Buffer | undefined, source: string): KeyObject {
   if (pemBuffer.length === 0) {
     throw new SmartTokenError(`Arquivo PEM vazio ou inválido: ${source}`);
   }
@@ -157,10 +150,7 @@ function loadPrivateKeyFromBuffer(
         : createPrivateKey({ key: pemBuffer, format: "pem" });
   } catch (err) {
     const hint = password !== undefined ? " (senha incorreta?)" : "";
-    throw new SmartTokenError(
-      `Falha ao carregar chave privada de ${source}${hint}: ${(err as Error).message}`,
-      err,
-    );
+    throw new SmartTokenError(`Falha ao carregar chave privada de ${source}${hint}: ${(err as Error).message}`, err);
   }
 
   validateMinimumKeySize(key, source);
@@ -177,6 +167,7 @@ function loadPrivateKeyFromBuffer(
  *   válido, ou se estiver fora do período de validade
  */
 export async function loadCertificate(path: string): Promise<X509Certificate> {
+  // eslint-disable-next-line security/detect-non-literal-fs-filename -- path é config do próprio chamador da lib, não entrada externa não confiável
   const pem = await readFile(path, "utf8");
   return loadCertificateFromString(pem, path);
 }

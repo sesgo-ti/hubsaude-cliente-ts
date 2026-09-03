@@ -135,7 +135,13 @@ function withRawSession(tokenLabel: string, fn: (p11: pkcs11js.PKCS11, session: 
 }
 
 /** Verifica uma assinatura crua contra o token — usado só para validar os testes, não a lib. */
-function verifyRaw(tokenLabel: string, keyLabel: string, mechanism: number, data: Buffer, signature: Uint8Array): boolean {
+function verifyRaw(
+  tokenLabel: string,
+  keyLabel: string,
+  mechanism: number,
+  data: Buffer,
+  signature: Uint8Array,
+): boolean {
   let valid = false;
   withRawSession(tokenLabel, (p11, session) => {
     p11.C_FindObjectsInit(session, [
@@ -156,7 +162,10 @@ function verifyRaw(tokenLabel: string, keyLabel: string, mechanism: number, data
 beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), "pkcs11-test-"));
   confPath = join(dir, "softhsm2.conf");
-  await writeFile(confPath, `directories.tokendir = ${join(dir, "tokens")}\nobjectstore.backend = file\nlog.level = ERROR\n`);
+  await writeFile(
+    confPath,
+    `directories.tokendir = ${join(dir, "tokens")}\nobjectstore.backend = file\nlog.level = ERROR\n`,
+  );
   await import("node:fs/promises").then((fs) => fs.mkdir(join(dir, "tokens")));
 
   initToken("token-rs384");
@@ -325,9 +334,9 @@ describe("fromPkcs11", () => {
 
   it("lança Error quando nem keyLabel nem keyId são informados", async () => {
     process.env.SOFTHSM2_CONF = confPath;
-    await expect(
-      fromPkcs11({ library: SOFTHSM_LIB, pin: PIN, tokenLabel: "token-rs384" }),
-    ).rejects.toThrow("Defina keyLabel e/ou keyId");
+    await expect(fromPkcs11({ library: SOFTHSM_LIB, pin: PIN, tokenLabel: "token-rs384" })).rejects.toThrow(
+      "Defina keyLabel e/ou keyId",
+    );
   });
 
   it("close() encerra a sessão — assinar depois de fechar falha", async () => {

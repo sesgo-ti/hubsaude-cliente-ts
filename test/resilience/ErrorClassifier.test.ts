@@ -1,7 +1,17 @@
 import { execFileSync, spawn } from "node:child_process";
 import net from "node:net";
-import { createServer as createHttpServer, get as httpGet, type IncomingMessage, type Server as HttpServer } from "node:http";
-import { Agent as HttpsAgent, createServer as createHttpsServer, request as httpsRequest, type Server as HttpsServer } from "node:https";
+import {
+  createServer as createHttpServer,
+  get as httpGet,
+  type IncomingMessage,
+  type Server as HttpServer,
+} from "node:http";
+import {
+  Agent as HttpsAgent,
+  createServer as createHttpsServer,
+  request as httpsRequest,
+  type Server as HttpsServer,
+} from "node:https";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -101,8 +111,36 @@ describe("isTransientNetworkFailure", () => {
   });
 
   it("retorna false quando o cliente rejeitou o certificado do servidor (não é falha de rede transitória)", async () => {
-    openssl(["req", "-x509", "-newkey", "rsa:2048", "-keyout", p("s-key.pem"), "-out", p("s-cert.pem"), "-days", "1", "-nodes", "-subj", "/CN=localhost"]);
-    openssl(["req", "-x509", "-newkey", "rsa:2048", "-keyout", p("outra-key.pem"), "-out", p("outra-cert.pem"), "-days", "1", "-nodes", "-subj", "/CN=outra"]);
+    openssl([
+      "req",
+      "-x509",
+      "-newkey",
+      "rsa:2048",
+      "-keyout",
+      p("s-key.pem"),
+      "-out",
+      p("s-cert.pem"),
+      "-days",
+      "1",
+      "-nodes",
+      "-subj",
+      "/CN=localhost",
+    ]);
+    openssl([
+      "req",
+      "-x509",
+      "-newkey",
+      "rsa:2048",
+      "-keyout",
+      p("outra-key.pem"),
+      "-out",
+      p("outra-cert.pem"),
+      "-days",
+      "1",
+      "-nodes",
+      "-subj",
+      "/CN=outra",
+    ]);
     const [key, cert, wrongCa] = await Promise.all([
       readFile(p("s-key.pem")),
       readFile(p("s-cert.pem")),
@@ -137,10 +175,36 @@ describe("isConfirmedClientCertificateRejection", () => {
   /** Sobe um `openssl s_server` real, que envia alertas TLS de verdade ao rejeitar. */
   async function startRealAlertServer(port: number): Promise<{ caPem: Buffer }> {
     openssl(["genrsa", "-out", p("ca3-key.pem"), "2048"]);
-    openssl(["req", "-x509", "-new", "-key", p("ca3-key.pem"), "-out", p("ca3-cert.pem"), "-days", "1", "-subj", "/CN=CA-Teste-3"]);
+    openssl([
+      "req",
+      "-x509",
+      "-new",
+      "-key",
+      p("ca3-key.pem"),
+      "-out",
+      p("ca3-cert.pem"),
+      "-days",
+      "1",
+      "-subj",
+      "/CN=CA-Teste-3",
+    ]);
     openssl(["genrsa", "-out", p("s3-key.pem"), "2048"]);
     openssl(["req", "-new", "-key", p("s3-key.pem"), "-out", p("s3.csr"), "-subj", "/CN=localhost"]);
-    openssl(["x509", "-req", "-in", p("s3.csr"), "-CA", p("ca3-cert.pem"), "-CAkey", p("ca3-key.pem"), "-CAcreateserial", "-out", p("s3-cert.pem"), "-days", "1"]);
+    openssl([
+      "x509",
+      "-req",
+      "-in",
+      p("s3.csr"),
+      "-CA",
+      p("ca3-cert.pem"),
+      "-CAkey",
+      p("ca3-key.pem"),
+      "-CAcreateserial",
+      "-out",
+      p("s3-cert.pem"),
+      "-days",
+      "1",
+    ]);
 
     const proc = spawn(
       "openssl",
@@ -172,7 +236,21 @@ describe("isConfirmedClientCertificateRejection", () => {
     const port = 18443;
     await startRealAlertServer(port);
     // Certificado de cliente autoassinado — não emitido pela CA que o servidor confia.
-    openssl(["req", "-x509", "-newkey", "rsa:2048", "-keyout", p("intruso3-key.pem"), "-out", p("intruso3-cert.pem"), "-days", "1", "-nodes", "-subj", "/CN=intruso3"]);
+    openssl([
+      "req",
+      "-x509",
+      "-newkey",
+      "rsa:2048",
+      "-keyout",
+      p("intruso3-key.pem"),
+      "-out",
+      p("intruso3-cert.pem"),
+      "-days",
+      "1",
+      "-nodes",
+      "-subj",
+      "/CN=intruso3",
+    ]);
     const [key, cert] = await Promise.all([readFile(p("intruso3-key.pem")), readFile(p("intruso3-cert.pem"))]);
 
     const agent = new HttpsAgent({ key, cert, rejectUnauthorized: false });
@@ -188,7 +266,21 @@ describe("isConfirmedClientCertificateRejection", () => {
   it("retorna false quando mTLS não estava configurado, mesmo com alerta real", async () => {
     const port = 18444;
     await startRealAlertServer(port);
-    openssl(["req", "-x509", "-newkey", "rsa:2048", "-keyout", p("intruso4-key.pem"), "-out", p("intruso4-cert.pem"), "-days", "1", "-nodes", "-subj", "/CN=intruso4"]);
+    openssl([
+      "req",
+      "-x509",
+      "-newkey",
+      "rsa:2048",
+      "-keyout",
+      p("intruso4-key.pem"),
+      "-out",
+      p("intruso4-cert.pem"),
+      "-days",
+      "1",
+      "-nodes",
+      "-subj",
+      "/CN=intruso4",
+    ]);
     const [key, cert] = await Promise.all([readFile(p("intruso4-key.pem")), readFile(p("intruso4-cert.pem"))]);
 
     const agent = new HttpsAgent({ key, cert, rejectUnauthorized: false });
@@ -208,8 +300,36 @@ describe("isLikelyClientCertificateRejection", () => {
   });
 
   it("retorna false quando o erro é o cliente rejeitando o certificado do servidor", async () => {
-    openssl(["req", "-x509", "-newkey", "rsa:2048", "-keyout", p("s2-key.pem"), "-out", p("s2-cert.pem"), "-days", "1", "-nodes", "-subj", "/CN=localhost"]);
-    openssl(["req", "-x509", "-newkey", "rsa:2048", "-keyout", p("outra2-key.pem"), "-out", p("outra2-cert.pem"), "-days", "1", "-nodes", "-subj", "/CN=outra"]);
+    openssl([
+      "req",
+      "-x509",
+      "-newkey",
+      "rsa:2048",
+      "-keyout",
+      p("s2-key.pem"),
+      "-out",
+      p("s2-cert.pem"),
+      "-days",
+      "1",
+      "-nodes",
+      "-subj",
+      "/CN=localhost",
+    ]);
+    openssl([
+      "req",
+      "-x509",
+      "-newkey",
+      "rsa:2048",
+      "-keyout",
+      p("outra2-key.pem"),
+      "-out",
+      p("outra2-cert.pem"),
+      "-days",
+      "1",
+      "-nodes",
+      "-subj",
+      "/CN=outra",
+    ]);
     const [key, cert, wrongCa] = await Promise.all([
       readFile(p("s2-key.pem")),
       readFile(p("s2-cert.pem")),

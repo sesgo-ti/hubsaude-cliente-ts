@@ -33,14 +33,11 @@ describe("resolveFaultToleranceConfig", () => {
     });
   });
 
-  it.each([0, -1, -100])(
-    "substitui assertionTtlSeconds=%i (não positivo) pelo padrão",
-    (value) => {
-      expect(resolveFaultToleranceConfig({ assertionTtlSeconds: value }).assertionTtlSeconds).toBe(
-        DEFAULT_ASSERTION_TTL_SECONDS,
-      );
-    },
-  );
+  it.each([0, -1, -100])("substitui assertionTtlSeconds=%i (não positivo) pelo padrão", (value) => {
+    expect(resolveFaultToleranceConfig({ assertionTtlSeconds: value }).assertionTtlSeconds).toBe(
+      DEFAULT_ASSERTION_TTL_SECONDS,
+    );
+  });
 
   it.each([0, -1, -100])("substitui maxRetries=%i (não positivo) pelo padrão", (value) => {
     expect(resolveFaultToleranceConfig({ maxRetries: value }).maxRetries).toBe(DEFAULT_MAX_RETRIES);

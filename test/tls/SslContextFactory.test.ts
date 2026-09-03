@@ -55,10 +55,36 @@ function getViaAgent(agent: Agent): Promise<{ status: number; body: string }> {
 /** Monta uma CA de teste + certificado de servidor assinado por ela. */
 async function setupCaAndServer(): Promise<{ caPem: string; serverStarted: Promise<void> }> {
   openssl(["genrsa", "-out", p("ca-key.pem"), "2048"]);
-  openssl(["req", "-x509", "-new", "-key", p("ca-key.pem"), "-out", p("ca-cert.pem"), "-days", "1", "-subj", "/CN=CA-Teste"]);
+  openssl([
+    "req",
+    "-x509",
+    "-new",
+    "-key",
+    p("ca-key.pem"),
+    "-out",
+    p("ca-cert.pem"),
+    "-days",
+    "1",
+    "-subj",
+    "/CN=CA-Teste",
+  ]);
   openssl(["genrsa", "-out", p("server-key.pem"), "2048"]);
   openssl(["req", "-new", "-key", p("server-key.pem"), "-out", p("server.csr"), "-subj", "/CN=localhost"]);
-  openssl(["x509", "-req", "-in", p("server.csr"), "-CA", p("ca-cert.pem"), "-CAkey", p("ca-key.pem"), "-CAcreateserial", "-out", p("server-cert.pem"), "-days", "1"]);
+  openssl([
+    "x509",
+    "-req",
+    "-in",
+    p("server.csr"),
+    "-CA",
+    p("ca-cert.pem"),
+    "-CAkey",
+    p("ca-key.pem"),
+    "-CAcreateserial",
+    "-out",
+    p("server-cert.pem"),
+    "-days",
+    "1",
+  ]);
 
   const [serverKey, serverCert, caPem] = await Promise.all([
     readFile(p("server-key.pem")),
@@ -89,14 +115,42 @@ async function generateClientCert(commonName: string): Promise<{ keyPem: string;
   const certPath = p(`${commonName}-cert.pem`);
   openssl(["genrsa", "-out", keyPath, "2048"]);
   openssl(["req", "-new", "-key", keyPath, "-out", csrPath, "-subj", `/CN=${commonName}`]);
-  openssl(["x509", "-req", "-in", csrPath, "-CA", p("ca-cert.pem"), "-CAkey", p("ca-key.pem"), "-CAcreateserial", "-out", certPath, "-days", "1"]);
+  openssl([
+    "x509",
+    "-req",
+    "-in",
+    csrPath,
+    "-CA",
+    p("ca-cert.pem"),
+    "-CAkey",
+    p("ca-key.pem"),
+    "-CAcreateserial",
+    "-out",
+    certPath,
+    "-days",
+    "1",
+  ]);
   const [keyPem, certPem] = await Promise.all([readFile(keyPath, "utf8"), readFile(certPath, "utf8")]);
   return { keyPem, certPem };
 }
 
 describe("checkCertificateValidity", () => {
   it("não lança para certificado dentro da validade", async () => {
-    openssl(["req", "-x509", "-newkey", "rsa:2048", "-keyout", p("valido-key.pem"), "-out", p("valido-cert.pem"), "-days", "1", "-nodes", "-subj", "/CN=valido"]);
+    openssl([
+      "req",
+      "-x509",
+      "-newkey",
+      "rsa:2048",
+      "-keyout",
+      p("valido-key.pem"),
+      "-out",
+      p("valido-cert.pem"),
+      "-days",
+      "1",
+      "-nodes",
+      "-subj",
+      "/CN=valido",
+    ]);
     const cert = await loadCertificate(p("valido-cert.pem"));
 
     expect(() => checkCertificateValidity(cert, "<teste>")).not.toThrow();
@@ -128,7 +182,21 @@ describe("buildAgent", () => {
     const { caPem, serverStarted } = await setupCaAndServer();
     await serverStarted;
     // Chave/certificado autoassinados, não emitidos pela CA de teste.
-    openssl(["req", "-x509", "-newkey", "rsa:2048", "-keyout", p("intruso-key.pem"), "-out", p("intruso-cert.pem"), "-days", "1", "-nodes", "-subj", "/CN=intruso"]);
+    openssl([
+      "req",
+      "-x509",
+      "-newkey",
+      "rsa:2048",
+      "-keyout",
+      p("intruso-key.pem"),
+      "-out",
+      p("intruso-cert.pem"),
+      "-days",
+      "1",
+      "-nodes",
+      "-subj",
+      "/CN=intruso",
+    ]);
     const keyPem = await readFile(p("intruso-key.pem"), "utf8");
     const certPem = await readFile(p("intruso-cert.pem"), "utf8");
 
@@ -150,10 +218,7 @@ describe("buildAgent", () => {
     if (server !== undefined) {
       await new Promise<void>((resolve) => server?.close(() => resolve()));
     }
-    const [serverKey, serverCert] = await Promise.all([
-      readFile(p("server-key.pem")),
-      readFile(p("server-cert.pem")),
-    ]);
+    const [serverKey, serverCert] = await Promise.all([readFile(p("server-key.pem")), readFile(p("server-cert.pem"))]);
     await new Promise<void>((resolve) => {
       server = createServer({ key: serverKey, cert: serverCert }, (_req, res) => {
         res.writeHead(200);

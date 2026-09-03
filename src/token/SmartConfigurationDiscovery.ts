@@ -31,8 +31,7 @@ export function requireHttps(url: string, fieldName: string): void {
   if (parsed.protocol === "https:") {
     return;
   }
-  const hostLocal =
-    parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1" || parsed.hostname === "::1";
+  const hostLocal = parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1" || parsed.hostname === "::1";
   if (parsed.protocol === "http:" && hostLocal) {
     return;
   }

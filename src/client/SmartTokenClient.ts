@@ -250,9 +250,7 @@ function requestWithConnectTimeout(
 ): Promise<IncomingMessage> {
   return new Promise((resolve, reject) => {
     const isHttps = new URL(url).protocol === "https:";
-    const req = isHttps
-      ? https.request(url, { ...options, agent }, resolve)
-      : http.request(url, options, resolve);
+    const req = isHttps ? https.request(url, { ...options, agent }, resolve) : http.request(url, options, resolve);
     req.on("error", reject);
 
     const connectTimer = setTimeout(() => {

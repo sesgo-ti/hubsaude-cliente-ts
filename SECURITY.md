@@ -10,10 +10,12 @@ Enquanto o projeto estiver na série `0.x` (pré-`1.0.0`), esta política se
 aplica à MINOR mais recente publicada, já que MINORs podem incluir
 mudanças incompatíveis nessa fase (ver [CONTRIBUTING.md](CONTRIBUTING.md)).
 
-| Versão         | Suportada |
-| -------------- | --------- |
-| MAJOR atual    | ✅        |
-| MAJOR anterior | ❌        |
+| Versão / série                   | Suportada |
+| -------------------------------- | --------- |
+| Série `0.x` (MINOR mais recente) | ✅        |
+| Série `0.x` (MINORs anteriores)  | ❌        |
+| `1.x+` (MAJOR mais recente)      | ✅        |
+| `1.x+` (MAJORs anteriores)       | ❌        |
 
 ## Como reportar uma vulnerabilidade
 

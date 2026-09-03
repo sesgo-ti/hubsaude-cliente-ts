@@ -597,9 +597,11 @@ export class SmartTokenClient {
    * interno, invalida o cache e — se a `signingStrategy` configurada
    * tiver um método `close` (ver {@link CloseableSigningStrategy}, ex.:
    * a sessão PKCS#11 aberta por {@link fromPkcs11}) — libera esse
-   * recurso também. Idempotente — chamadas subsequentes não têm efeito.
-   * Após o fechamento, `obtainToken`/`obtainTokenResponse` falham
-   * explicitamente.
+   * recurso também, de forma best-effort: uma falha em `close` da
+   * estratégia não impede o restante do encerramento nem faz este
+   * método rejeitar. Idempotente — chamadas subsequentes não têm
+   * efeito. Após o fechamento, `obtainToken`/`obtainTokenResponse`
+   * falham explicitamente.
    */
   async close(): Promise<void> {
     if (this.#closed) {
@@ -609,7 +611,11 @@ export class SmartTokenClient {
     await Promise.allSettled([...this.#pending]);
     this.#context.agent.destroy();
     this.#tokenCache.invalidateAll();
-    await (this.#context.signingStrategy as CloseableSigningStrategy).close?.();
+    try {
+      await (this.#context.signingStrategy as CloseableSigningStrategy).close?.();
+    } catch {
+      // ignorado de propósito — close() do cliente é best-effort
+    }
   }
 
   /** Permite `await using client = await createSmartTokenClient(...)`. */

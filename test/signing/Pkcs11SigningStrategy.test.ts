@@ -4,6 +4,7 @@
  */
 
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -214,7 +215,11 @@ describe("fromPkcs11", () => {
     const signature = await strategy(data);
 
     expect(signature.length).toBe(96);
-    expect(verifyRaw("token-es384", "chave-es384", pkcs11js.CKM_ECDSA_SHA384, data, signature)).toBe(true);
+    // Verifica com CKM_ECDSA puro (hash calculado aqui), espelhando o
+    // que fromPkcs11 faz ao assinar — ver comentário em
+    // jwtAlgorithmToPkcs11 sobre por que ES* usa o mecanismo puro.
+    const digest = createHash("sha384").update(data).digest();
+    expect(verifyRaw("token-es384", "chave-es384", pkcs11js.CKM_ECDSA, digest, signature)).toBe(true);
   });
 
   it("reutiliza a mesma sessão em assinaturas sucessivas (sem reautenticar)", async () => {

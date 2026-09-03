@@ -28,6 +28,10 @@ describe("sanitizeExpiresIn", () => {
     expect(sanitizeExpiresIn({ expires_in: MAX_EXPIRES_IN_SECONDS + 1000 })).toBe(MAX_EXPIRES_IN_SECONDS);
   });
 
+  it("aceita o valor exatamente no teto, sem normalizar", () => {
+    expect(sanitizeExpiresIn({ expires_in: MAX_EXPIRES_IN_SECONDS })).toBe(MAX_EXPIRES_IN_SECONDS);
+  });
+
   it("trunca valores fracionários", () => {
     expect(sanitizeExpiresIn({ expires_in: 59.9 })).toBe(59);
   });

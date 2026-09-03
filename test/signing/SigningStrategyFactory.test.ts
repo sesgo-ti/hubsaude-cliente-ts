@@ -177,6 +177,10 @@ describe("jwtAlgorithmToNode", () => {
   it("lança SmartTokenError para algoritmo não reconhecido", () => {
     expect(() => jwtAlgorithmToNode("HS256")).toThrow(SmartTokenError);
   });
+
+  it('rejeita explicitamente o algoritmo "none" (vulnerabilidade clássica de JWT)', () => {
+    expect(() => jwtAlgorithmToNode("none")).toThrow(SmartTokenError);
+  });
 });
 
 describe("fromPrivateKeyForJwt", () => {
@@ -197,5 +201,16 @@ describe("fromPrivateKeyForJwt", () => {
 
     expect(signature.length).toBe(64);
     expect(verify("sha256", DATA, { key: publicKey, dsaEncoding: "ieee-p1363" }, signature)).toBe(true);
+  });
+
+  it("assina PS256 corretamente (RSA-PSS)", async () => {
+    const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+
+    const strategy = fromPrivateKeyForJwt(privateKey, "PS256");
+    const signature = await strategy(DATA);
+
+    expect(
+      verify("sha256", DATA, { key: publicKey, padding: constants.RSA_PKCS1_PSS_PADDING, saltLength: 32 }, signature),
+    ).toBe(true);
   });
 });

@@ -149,6 +149,17 @@ describe("loadPrivateKey / loadPrivateKeyFromString", () => {
 
     expect(key.asymmetricKeyType).toBe("rsa");
   });
+
+  it("zera a senha mesmo quando a chave carregada não é criptografada (senha desnecessária)", async () => {
+    const path = fixturePath("pkcs8-plain-com-senha-desnecessaria.pem");
+    await writeFile(path, generateRsaPem("pkcs8"));
+    const password = Buffer.from("senha-que-nao-era-necessaria");
+
+    const key = await loadPrivateKey(path, password);
+
+    expect(key.asymmetricKeyType).toBe("rsa");
+    expect(password.every((byte) => byte === 0)).toBe(true);
+  });
 });
 
 describe("validateMinimumKeySize", () => {

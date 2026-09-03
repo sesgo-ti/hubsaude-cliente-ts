@@ -3,7 +3,7 @@ import { createPrivateKey } from "node:crypto";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import type { IncomingMessage } from "node:http";
 import { createServer, request, type Agent, type Server } from "node:https";
-import type { TLSSocket } from "node:tls";
+import type { SecureVersion, TLSSocket } from "node:tls";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -248,5 +248,20 @@ describe("buildAgent", () => {
 
   it("usa TLSv1.3 como protocolo padrão", () => {
     expect(DEFAULT_TLS_PROTOCOL).toBe("TLSv1.3");
+  });
+
+  it("propaga o erro nativo do Node para tlsProtocol inválido, na conexão (não na construção do Agent)", () => {
+    // `new https.Agent(...)` não valida `minVersion` — confirmado que
+    // não lança nada aqui, mesmo com um valor inválido.
+    const agent = buildAgent({ tlsProtocol: "TLSv9.9" as SecureVersion });
+    expect(agent).toBeDefined();
+
+    // A validação real acontece só quando o Node tenta abrir a conexão
+    // TLS (dentro de `tls.createSecureContext`) — lançado de forma
+    // síncrona pelo próprio `https.request`, sem chegar a ser um erro
+    // de rede.
+    expect(() => request({ hostname: HOST, port: PORT, agent })).toThrow(
+      expect.objectContaining({ code: "ERR_TLS_INVALID_PROTOCOL_VERSION" }),
+    );
   });
 });

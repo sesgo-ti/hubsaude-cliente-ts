@@ -160,6 +160,19 @@ describe("isTransientNetworkFailure", () => {
       agent.destroy();
     }
   });
+
+  it("retorna false, sem lançar, para um Error simples sem cause nem code", () => {
+    const err = new Error("erro genérico, sem cause nem code definidos");
+
+    expect(() => isTransientNetworkFailure(err)).not.toThrow();
+    expect(isTransientNetworkFailure(err)).toBe(false);
+  });
+
+  it("retorna false, sem lançar, para valores que não são Error (string, undefined, objeto simples)", () => {
+    expect(isTransientNetworkFailure("não é um Error")).toBe(false);
+    expect(isTransientNetworkFailure(undefined)).toBe(false);
+    expect(isTransientNetworkFailure({ code: "ECONNRESET" })).toBe(false); // parece um erro, mas não é instanceof Error
+  });
 });
 
 describe("isConfirmedClientCertificateRejection", () => {
@@ -291,6 +304,13 @@ describe("isConfirmedClientCertificateRejection", () => {
       agent.destroy();
     }
   });
+
+  it("retorna false, sem lançar, para um Error simples sem cause nem code", () => {
+    const err = new Error("erro genérico, sem cause nem code definidos");
+
+    expect(() => isConfirmedClientCertificateRejection(err, true)).not.toThrow();
+    expect(isConfirmedClientCertificateRejection(err, true)).toBe(false);
+  });
 });
 
 describe("isLikelyClientCertificateRejection", () => {
@@ -384,6 +404,12 @@ describe("sanitizeErrorResponse", () => {
     expect(sanitizeErrorResponse(null)).toBe("<empty>");
     expect(sanitizeErrorResponse(undefined)).toBe("<empty>");
     expect(sanitizeErrorResponse("")).toBe("<empty>");
+  });
+
+  it("mantém intacta uma resposta sem access_token/token (nada a redigir)", () => {
+    const body = '{"error":"invalid_client","error_description":"client_id desconhecido"}';
+
+    expect(sanitizeErrorResponse(body)).toBe(body);
   });
 });
 

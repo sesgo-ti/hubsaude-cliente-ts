@@ -23,7 +23,7 @@ import {
 import { computeRetryDelayMs } from "../resilience/RetryPolicy.js";
 import { loadCertificate, loadPrivateKey } from "../signing/PemLoader.js";
 import { fromPrivateKeyForJwt, jwtAlgorithmToNode } from "../signing/SigningStrategyFactory.js";
-import type { SigningStrategy } from "../signing/SigningStrategy.js";
+import type { CloseableSigningStrategy, SigningStrategy } from "../signing/SigningStrategy.js";
 import { verifyKeyPair } from "../signing/KeyCertificateConsistency.js";
 import { discoverTokenEndpoint, requireHttps } from "../token/SmartConfigurationDiscovery.js";
 import { readBoundedText, sanitizeExpiresIn } from "../token/TokenResponseGuard.js";
@@ -594,9 +594,12 @@ export class SmartTokenClient {
 
   /**
    * Fecha o cliente: aguarda operações em voo, encerra o `https.Agent`
-   * interno e invalida o cache. Idempotente — chamadas subsequentes não
-   * têm efeito. Após o fechamento, `obtainToken`/`obtainTokenResponse`
-   * falham explicitamente.
+   * interno, invalida o cache e — se a `signingStrategy` configurada
+   * tiver um método `close` (ver {@link CloseableSigningStrategy}, ex.:
+   * a sessão PKCS#11 aberta por {@link fromPkcs11}) — libera esse
+   * recurso também. Idempotente — chamadas subsequentes não têm efeito.
+   * Após o fechamento, `obtainToken`/`obtainTokenResponse` falham
+   * explicitamente.
    */
   async close(): Promise<void> {
     if (this.#closed) {
@@ -606,6 +609,7 @@ export class SmartTokenClient {
     await Promise.allSettled([...this.#pending]);
     this.#context.agent.destroy();
     this.#tokenCache.invalidateAll();
+    await (this.#context.signingStrategy as CloseableSigningStrategy).close?.();
   }
 
   /** Permite `await using client = await createSmartTokenClient(...)`. */

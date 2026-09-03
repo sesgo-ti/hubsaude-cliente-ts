@@ -384,6 +384,68 @@ npm run test:coverage
 
 `test:coverage` aplica um gate mínimo de 85% de cobertura de linha.
 
+### Teste de integração com o simulador local
+
+Além da suíte unitária (`test/**`, mockada, sem rede), há uma suíte de
+integração real em `it/` — sem mocks, batendo de verdade num simulador
+local do HubSaúde via mTLS, incluindo descoberta de endpoint via
+`.well-known/smart-configuration`. Fica fisicamente fora de `test/**` e
+não roda como parte de `npm test`/`npm run test:coverage`.
+
+Requer a CLI `hubsaude`, que provisiona e gerencia o simulador como
+processo local:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/kyriosdata/runner/main/install.sh | bash
+```
+
+Instala o binário em `~/.local/bin` (sem `sudo`). Confirme com:
+
+```bash
+hubsaude version
+```
+
+Com a CLI instalada:
+
+```bash
+npm run test:integration
+```
+
+Sem a CLI instalada, a suíte é **pulada automaticamente** (não falha),
+com um aviso explicando como instalá-la. O teste sobe e encerra o
+simulador sozinho; note que ele é gerenciado como um processo único por
+máquina — rodar a suíte localmente reinicia qualquer instância do
+simulador já em execução para outro propósito.
+
+### Smoke test manual contra homologação real
+
+Além do simulador local (hermético, mas ainda uma simulação), há um
+smoke test à parte que bate no ambiente real de homologação —
+`it/SmartTokenClientHomolog.test.ts`. Detecta divergências sutis entre o
+comportamento simulado e o servidor de autorização real que o simulador
+não reproduziria.
+
+Nunca roda em CI, e é opt-in mesmo localmente: só executa se as
+variáveis de ambiente abaixo estiverem definidas (nenhuma credencial
+fica neste repositório):
+
+| Variável            | Obrigatória | Descrição                                                 |
+| ------------------- | ----------- | --------------------------------------------------------- |
+| `HOMOLOG_CLIENT_ID` | sim         | `client_id` já registrado no homolog                      |
+| `HOMOLOG_CERT_PATH` | sim         | Certificado de cliente (PEM) associado a esse `client_id` |
+| `HOMOLOG_KEY_PATH`  | sim         | Chave privada (PEM) correspondente                        |
+| `HOMOLOG_FHIR_BASE` | não         | Padrão: `https://hub-homolog.saude.go.gov.br/`            |
+| `HOMOLOG_SCOPE`     | não         | Padrão: `system/Patient.rs`                               |
+
+```bash
+HOMOLOG_CLIENT_ID=... \
+HOMOLOG_CERT_PATH=/caminho/para/certificado.pem \
+HOMOLOG_KEY_PATH=/caminho/para/chave.pem \
+npm run test:integration:homolog
+```
+
+Sem essas variáveis, a suíte é pulada automaticamente com um aviso.
+
 ### Qualidade de código
 
 ```bash

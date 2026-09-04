@@ -1131,7 +1131,6 @@ describe("createSmartTokenClient — higiene de segredos em memória (RNF-03)", 
     try {
       await client.obtainToken("system/Patient.rs"); // token fica em cache internamente
 
-      expect(String(client)).not.toContain(SECRET_TOKEN);
       expect(`${client}`).not.toContain(SECRET_TOKEN);
       expect(JSON.stringify(client)).not.toContain(SECRET_TOKEN);
       expect(inspect(client)).not.toContain(SECRET_TOKEN);

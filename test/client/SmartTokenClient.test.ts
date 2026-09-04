@@ -5,6 +5,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { inspect } from "node:util";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { SmartTokenError } from "../../src/errors/SmartTokenError.js";
 import { createSmartTokenClient, SmartTokenClient } from "../../src/client/SmartTokenClient.js";
@@ -1109,6 +1110,30 @@ describe("createSmartTokenClient — higiene de segredos em memória (RNF-03)", 
     });
     try {
       expect(pfx.equals(pfxCopyBeforeUse)).toBe(true); // continua intacto, de propósito
+    } finally {
+      await client.close();
+    }
+  });
+
+  it("não vaza o token cacheado via toString()/inspeção padrão do Node (campos privados de verdade, `#`)", async () => {
+    const { path } = await generateRsaKeyFile();
+    const SECRET_TOKEN = "segredo-nao-pode-vazar-9f8e7d6c";
+    const base = await startServer((_req, res) => {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ access_token: SECRET_TOKEN, expires_in: 120 }));
+    });
+
+    const client = await createSmartTokenClient({
+      tokenEndpoint: `${base}/token`,
+      clientId: "meu-cliente",
+      privateKeyPem: path,
+    });
+    try {
+      await client.obtainToken("system/Patient.rs"); // token fica em cache internamente
+
+      expect(`${client}`).not.toContain(SECRET_TOKEN);
+      expect(JSON.stringify(client)).not.toContain(SECRET_TOKEN);
+      expect(inspect(client)).not.toContain(SECRET_TOKEN);
     } finally {
       await client.close();
     }

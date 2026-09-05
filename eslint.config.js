@@ -53,11 +53,9 @@ export default [
     // `eslint-plugin-security` em código de teste; ver também os
     // `eslint-disable-next-line` pontuais em `src/` para os casos
     // equivalentes fora de teste, tratados individualmente em vez de
-    // desligados por categoria. `it/**` (testes de integração contra o
-    // simulador local, fora de `test/**` de propósito — ver
-    // `vitest.config.ts`) tem exatamente o mesmo perfil de acesso a
-    // arquivo e entra na mesma exceção.
-    files: ["test/**/*.ts", "it/**/*.ts"],
+    // desligados por categoria. Cobre também `test/integration/` (testes
+    // de integração reais, mesmo perfil de acesso a arquivo).
+    files: ["test/**/*.ts"],
     rules: {
       "security/detect-non-literal-fs-filename": "off",
       "security/detect-object-injection": "off",

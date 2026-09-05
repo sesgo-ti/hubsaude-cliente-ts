@@ -37,7 +37,7 @@
  */
 import { existsSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { createSmartTokenClient } from "../src/index.js";
+import { createSmartTokenClient } from "../../src/index.js";
 
 const CLIENT_ID = process.env.HOMOLOG_CLIENT_ID;
 const CERT_PATH = process.env.HOMOLOG_CERT_PATH;
@@ -57,7 +57,7 @@ function resolveSkipReason(): string | undefined {
 const skipReason = resolveSkipReason();
 if (skipReason) {
   console.warn(
-    `Pulando smoke test de homologação (it/SmartTokenClientHomolog.test.ts): ${skipReason}. ` +
+    `Pulando smoke test de homologação (test/integration/SmartTokenClientHomolog.test.ts): ${skipReason}. ` +
       "Veja o README.md, seção de testes de integração, para as variáveis de ambiente esperadas.",
   );
 }

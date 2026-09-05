@@ -2,15 +2,14 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    // "it/**" fica de fora do include-padrão do vitest (que casa
-    // qualquer "*.test.ts" no repo, não só em "test/**"): são testes de
-    // integração reais contra o simulador local do HubSaúde (CLI
-    // `hubsaude`), fisicamente separados de "test/**" de propósito, e
-    // não devem rodar como parte de "npm test"/"npm run test:coverage".
-    // Rodam só via "npm run test:integration", que usa
+    // "test/integration/**" são testes de integração reais contra o
+    // simulador local do HubSaúde (CLI `hubsaude`) ou o ambiente de
+    // homologação real — não devem rodar como parte de "npm
+    // test"/"npm run test:coverage". Rodam só via "npm run
+    // test:integration"/"npm run test:integration:homolog", que usam
     // `vitest.integration.config.ts` — uma configuração à parte (sem
-    // este exclude) dedicada a "it/**".
-    exclude: ["node_modules/**", "dist/**", "it/**"],
+    // este exclude) dedicada a "test/integration/**".
+    exclude: ["node_modules/**", "dist/**", "test/integration/**"],
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "lcov"],

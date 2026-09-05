@@ -70,7 +70,7 @@ licença do projeto, conforme o texto integral do DCO. Commits sem
 
 ## Padrões técnicos
 
-- **Node.js 20+** (`engines.node` do `package.json`). Build e testes via
+- **Node.js 22+** (`engines.node` do `package.json`). Build e testes via
   **npm**.
 - **TypeScript** como linguagem de implementação; a API pública é
   consumível também a partir de JavaScript puro (ver `exports` do

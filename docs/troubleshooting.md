@@ -7,7 +7,7 @@ Este guia é direcionado ao desenvolvedor que está integrando
 > exemplos do [README](../README.md)); use o endpoint informado no seu
 > credenciamento.
 
-**Importante:** em ambientes modernos (Node.js 20+, o mínimo suportado
+**Importante:** em ambientes modernos (Node.js 22+, o mínimo suportado
 por este SDK — ver `engines` do `package.json`), o certificado do
 servidor deve ser confiável automaticamente, sem nenhuma configuração
 adicional. Teste a conexão simples antes de suspeitar de bug na

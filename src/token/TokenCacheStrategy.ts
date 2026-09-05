@@ -34,7 +34,7 @@ interface CachedToken {
 export interface TokenCacheStrategyOptions {
   /** Se `false`, desliga o cache: toda chamada busca um token novo. Padrão `true`. */
   enabled?: boolean;
-  /** Margem de renovação antecipada, em segundos, antes do token expirar de fato. */
+  /** Margem em segundos para renovar token antes da expiração (padrão 30; ≤0 usa o padrão). */
   marginSeconds?: number;
   /** Teto de entradas simultâneas no cache (LRU) — descarta a menos recentemente usada ao exceder. */
   maxEntries?: number;

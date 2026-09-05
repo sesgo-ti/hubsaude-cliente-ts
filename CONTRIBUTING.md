@@ -88,7 +88,11 @@ licença do projeto, conforme o texto integral do DCO. Commits sem
 - **JSDoc/TSDoc** em pt-BR para toda a API pública exportada pelo ponto de
   entrada do pacote. Comentários devem ser escritos para quem vai
   **integrar** a lib — descreva comportamento e motivo, não anotações de
-  processo interno de desenvolvimento.
+  processo interno de desenvolvimento. Geração de documentação via
+  TypeDoc ainda não está disponível — bloqueada por incompatibilidade
+  com `typescript@^7.0.2` (ver seção "Documentação de API" no
+  `README.md`); mantenha o JSDoc completo mesmo assim, já que ele
+  também é lido diretamente do código-fonte.
 - **Sem `console.log`/`console.error`** na biblioteca: use o `logger`
   injetável opcional (`logging/Logger.ts`) nos pontos de código que já o
   recebem. A lib não deve impor nenhuma infraestrutura de log ao

@@ -12,16 +12,13 @@ import type { SigningStrategy } from "./SigningStrategy.js";
 
 /**
  * Centraliza a criação de {@link SigningStrategy} para diferentes fontes de
- * material criptográfico.
+ * material criptográfico: chave em memória, PEM (arquivo ou string) e
+ * PKCS#12.
  *
- * **HSM/PKCS#11**: diferente do Java (que usa o provider `SunPKCS11`
- * embutido no JDK), o Node não tem suporte nativo a PKCS#11, e a lib
- * correspondente (`pkcs11js`) exige compilação de binário nativo
- * (`node-gyp`). Por isso este módulo não oferece um `fromPkcs11` pronto:
- * acesso a HSM deve ser feito com uma {@link SigningStrategy} própria
- * (assíncrona), que delega a operação ao dispositivo por qualquer via —
- * `pkcs11js` na própria aplicação, um sidecar dedicado, ou uma API de KMS
- * em nuvem. A interface já foi desenhada para isso desde o início.
+ * **HSM/PKCS#11**: coberto por `fromPkcs11`, num módulo separado
+ * (`signing/Pkcs11SigningStrategy.ts`), já que depende de `pkcs11js` —
+ * um pacote com binário nativo, declarado como `peerDependency`
+ * opcional para não impor sua instalação a quem nunca usa HSM.
  */
 
 /**
@@ -87,20 +84,6 @@ export interface Pkcs12Material {
 }
 
 /**
- * Extrai a chave privada e o certificado de um arquivo PKCS#12/PFX.
- *
- * O Node não lê PKCS#12 nativamente (só via `node:tls`, para uso direto
- * numa conexão) — por isso esta função usa `node-forge` para decodificar
- * o contêiner, convertendo o resultado para os tipos nativos do Node
- * (`KeyObject`, `X509Certificate`) logo em seguida.
- *
- * @param pfx - conteúdo binário do arquivo PKCS#12/PFX
- * @param passphrase - senha do arquivo
- * @returns a chave privada e o certificado extraídos
- * @throws {SmartTokenError} se a senha estiver incorreta, o arquivo for
- *   inválido, ou não contiver chave privada e certificado
- */
-/**
  * Lê um identificador de objeto (OID) nomeado da tabela do node-forge.
  *
  * A tabela é tipada como um dicionário genérico (`{ [key: string]: string }`),
@@ -117,6 +100,20 @@ function oid(name: "pkcs8ShroudedKeyBag" | "keyBag" | "certBag"): string {
   return value;
 }
 
+/**
+ * Extrai a chave privada e o certificado de um arquivo PKCS#12/PFX.
+ *
+ * O Node não lê PKCS#12 nativamente (só via `node:tls`, para uso direto
+ * numa conexão) — por isso esta função usa `node-forge` para decodificar
+ * o contêiner, convertendo o resultado para os tipos nativos do Node
+ * (`KeyObject`, `X509Certificate`) logo em seguida.
+ *
+ * @param pfx - conteúdo binário do arquivo PKCS#12/PFX
+ * @param passphrase - senha do arquivo
+ * @returns a chave privada e o certificado extraídos
+ * @throws {SmartTokenError} se a senha estiver incorreta, o arquivo for
+ *   inválido, ou não contiver chave privada e certificado
+ */
 export function loadPkcs12(pfx: Buffer, passphrase: string): Pkcs12Material {
   let p12: forge.pkcs12.Pkcs12Pfx;
   try {

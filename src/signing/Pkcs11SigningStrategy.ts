@@ -53,8 +53,8 @@ const PSS_SALT_LEN_512 = 64;
  * Buffer de saída para `C_Sign`, generoso o bastante para qualquer
  * assinatura RSA (até 8192 bits = 1024 bytes) ou EC (até P-521 = 132
  * bytes) suportada por este módulo. `pkcs11js` corta o resultado para o
- * tamanho real devolvido pelo módulo PKCS#11 (confirmado lendo o código
- * de `modifyMethod` em `pkcs11js`), então superalocar aqui é seguro. Um
+ * tamanho real devolvido pelo módulo PKCS#11 (ver `modifyMethod` no
+ * código-fonte de `pkcs11js`), então superalocar aqui é seguro. Um
  * token com chave RSA maior que 8192 bits (extremamente incomum) ainda
  * falharia por buffer insuficiente — `fromPkcs11` não valida o tamanho
  * da chave antecipadamente, já que handles PKCS#11 são opacos.
@@ -122,14 +122,12 @@ interface Pkcs11Mechanism {
  * nem todo HSM/token oferece as variantes combinadas de ECDSA
  * (`CKM_ECDSA_SHA256`/`384`/`512`); `CKM_ECDSA` puro é o mínimo
  * denominador comum entre implementações PKCS#11 de fabricantes
- * variados — a mesma estratégia que o `SunPKCS11` do JDK usa por trás
- * dos panos quando o token não suporta o mecanismo combinado.
+ * variados.
  *
- * Confirmado empiricamente contra um SoftHSM2 real: `CKM_ECDSA` (puro,
- * recebendo o digest já calculado) devolve a assinatura no mesmo
- * formato bruto `R||S` (96 bytes para P-384) que as variantes
- * combinadas — o formato de saída do PKCS#11 para ECDSA independe de
- * onde o hash é calculado.
+ * O formato de saída do PKCS#11 para ECDSA independe de onde o hash é
+ * calculado: `CKM_ECDSA` puro (recebendo o digest já calculado) devolve
+ * a assinatura no mesmo formato bruto `R||S` (96 bytes para P-384) que
+ * as variantes combinadas.
  *
  * @throws {SmartTokenError} se o algoritmo não for reconhecido
  */
@@ -253,8 +251,8 @@ function findPrivateKey(
  *
  * O módulo nativo PKCS#11 (o `.so`/`.dll` em si) é um singleton por
  * processo — carregado uma única vez via `dlopen`, mesmo que várias
- * instâncias de `pkcs11js.PKCS11` o carreguem separadamente. Confirmado
- * empiricamente: chamar `fromPkcs11` mais de uma vez no mesmo processo
+ * instâncias de `pkcs11js.PKCS11` o carreguem separadamente. Chamar
+ * `fromPkcs11` mais de uma vez no mesmo processo
  * (cenário real — mais de um cliente usando HSM, ou só a própria suíte
  * de testes) faz a segunda chamada de `C_Initialize` falhar com
  * `CKR_CRYPTOKI_ALREADY_INITIALIZED`, mesmo o módulo estando
@@ -280,10 +278,10 @@ function initializeOnce(pkcs11: Pkcs11Module, p11: Pkcs11Instance, library: stri
  * mantida num HSM/token via PKCS#11 — a chave nunca sai do hardware; a
  * assinatura é delegada ao dispositivo (RF-12.2).
  *
- * O Node não tem suporte nativo a PKCS#11 (diferente do JDK, que embute
- * o provider `SunPKCS11`); esta função usa `pkcs11js`, carregado sob
- * demanda (ver {@link loadPkcs11Module}) — instale-o separadamente
- * (`npm install pkcs11js`) apenas se for usar esta função.
+ * O Node não tem suporte nativo a PKCS#11; esta função usa `pkcs11js`,
+ * carregado sob demanda (ver {@link loadPkcs11Module}) — instale-o
+ * separadamente (`npm install pkcs11js`) apenas se for usar esta
+ * função.
  *
  * A sessão com o token é aberta e autenticada uma única vez, nesta
  * chamada (fail-fast: PIN incorreto ou chave inexistente falham aqui,
@@ -325,10 +323,10 @@ export async function fromPkcs11(options: Pkcs11Options): Promise<CloseableSigni
     } catch (err) {
       const code = (err as { code?: number }).code;
       // O login é uma propriedade do token, não da sessão, na maioria
-      // das implementações (confirmado empiricamente contra SoftHSM2):
-      // uma segunda sessão no mesmo token — outra chamada a fromPkcs11
-      // no mesmo processo — encontra o token já autenticado. Não é uma
-      // falha real, então não a tratamos como PIN incorreto.
+      // das implementações PKCS#11: uma segunda sessão no mesmo token —
+      // outra chamada a fromPkcs11 no mesmo processo — encontra o token
+      // já autenticado. Não é uma falha real, então não a tratamos como
+      // PIN incorreto.
       if (code !== pkcs11.CKR_USER_ALREADY_LOGGED_IN) {
         throw new SmartTokenError(`Falha ao autenticar no token PKCS#11 (PIN incorreto?): ${options.library}`, err);
       }

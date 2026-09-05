@@ -14,7 +14,7 @@ const MAX_ERROR_RESPONSE_LENGTH = 500;
 
 /**
  * Códigos de erro (`err.code`) do Node tratados como falha transitória
- * de rede — confirmados empiricamente contra `node:https`:
+ * de rede — os produzidos por `node:https`:
  * `ECONNREFUSED` (conexão recusada), `ECONNRESET`/`EPIPE` (conexão
  * derrubada abruptamente) e `ETIMEDOUT` (timeout de baixo nível, tanto
  * do próprio SO quanto do temporizador manual de `connectTimeoutMs` em
@@ -46,10 +46,9 @@ const TLS_CERT_VERIFICATION_ERROR_CODES = new Set([
  * detectar com confiança que o **servidor** rejeitou o certificado de
  * **cliente** apresentado no mTLS (RF-08.1).
  *
- * Usa um padrão, não uma lista fixa de códigos exatos: confirmado
- * empiricamente (`openssl s_server -Verify 1 -verify_return_error`,
- * forçando rejeições reais) que o formato varia por versão do
- * OpenSSL/protocolo negociado — `ERR_SSL_TLSV1_ALERT_UNKNOWN_CA` (CA não
+ * Usa um padrão, não uma lista fixa de códigos exatos, porque o formato
+ * varia por versão do OpenSSL/protocolo negociado —
+ * `ERR_SSL_TLSV1_ALERT_UNKNOWN_CA` (CA não
  * confiável), `ERR_SSL_SSL/TLS_ALERT_CERTIFICATE_EXPIRED` (certificado
  * expirado — note a barra "/" literal no código) e
  * `ERR_SSL_TLSV13_ALERT_CERTIFICATE_REQUIRED` (nenhum certificado
@@ -119,8 +118,8 @@ export function isClientSideCertificateValidationFailure(err: unknown): boolean 
  * `AbortError`) e recusa/queda de conexão TCP (`ECONNREFUSED`,
  * `ECONNRESET`, `ETIMEDOUT`, `EPIPE`). Falhas de verificação de
  * certificado do servidor pelo cliente nunca são consideradas
- * transitórias — assim como no Java, onde `SSLException` nunca é
- * retriável.
+ * transitórias — um problema de confiança na cadeia TLS não se resolve
+ * tentando de novo.
  *
  * @param err - erro capturado na tentativa
  * @returns `true` quando a falha é transitória de rede
@@ -150,8 +149,7 @@ export function isTransientNetworkFailure(err: unknown): boolean {
  * Diferente de {@link isLikelyClientCertificateRejection} (que só
  * sugere, para o caso ambíguo em que a conexão simplesmente cai sem
  * alerta nenhum), esta função só retorna `true` quando o sinal é
- * inequívoco — seguro para interromper o retry imediatamente, como o
- * Java faz.
+ * inequívoco — seguro para interromper o retry imediatamente.
  *
  * @param err - erro capturado na tentativa
  * @param mtlsConfigured - se a conexão tinha certificado de cliente
@@ -178,7 +176,7 @@ export function isConfirmedClientCertificateRejection(err: unknown, mtlsConfigur
  * *pode* ter sido causada pelo servidor rejeitando o certificado de
  * cliente no mTLS.
  *
- * **Limitação real, confirmada empiricamente**: nem todo servidor que
+ * **Limitação real**: nem todo servidor que
  * rejeita um certificado de cliente envia um alerta TLS formal antes de
  * fechar a conexão — alguns (inclusive o próprio `https.Server` do Node,
  * quando a verificação do certificado do peer falha após o handshake

@@ -15,11 +15,9 @@ export const DEFAULT_TLS_PROTOCOL: SecureVersion = "TLSv1.3";
  * Material de configuração TLS/mTLS para a conexão com o servidor de
  * autorização.
  *
- * Ao contrário do Java (que precisa de `KeyManager`/`TrustManager`
- * separados por combinação de fonte), o `https.Agent` nativo do Node
- * aceita todo esse material diretamente nas opções de conexão — por
- * isso um único conjunto de campos, todos opcionais, cobre as
- * combinações de RF-10/RF-11.
+ * O `https.Agent` nativo do Node aceita todo esse material diretamente
+ * nas opções de conexão — por isso um único conjunto de campos, todos
+ * opcionais, cobre as combinações de RF-10/RF-11.
  *
  * @property serverTrustAnchor - certificado(s) de CA customizados para
  *   validar o servidor; omitido usa o trust store padrão do Node

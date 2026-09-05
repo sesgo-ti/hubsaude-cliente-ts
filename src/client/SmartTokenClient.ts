@@ -55,11 +55,10 @@ export interface HubContext {
  * Opções de construção do {@link SmartTokenClient} (ver
  * {@link createSmartTokenClient}).
  *
- * Substitui o builder fluente do Java por um único objeto de opções —
- * idiomático em TypeScript (ESPECIFICACAO.md §9.1) e necessário de
- * qualquer forma, já que construtores JS/TS não podem ser assíncronos e
- * a construção envolve I/O (ler PEM, opcionalmente descobrir o endpoint
- * via rede).
+ * Um único objeto de opções — idiomático em TypeScript
+ * (ESPECIFICACAO.md §9.1) e necessário de qualquer forma, já que
+ * construtores JS/TS não podem ser assíncronos e a construção envolve
+ * I/O (ler PEM, opcionalmente descobrir o endpoint via rede).
  */
 export interface SmartTokenClientOptions {
   /** URL completa do token endpoint. Mutuamente exclusivo com `fhirBase`. */
@@ -86,11 +85,9 @@ export interface SmartTokenClientOptions {
    * `privateKeyPassword` (consumido uma única vez, na hora, para extrair
    * a chave), o `https.Agent` mantém este buffer e faz o parsing do
    * PKCS#12 de novo a cada nova conexão TCP subjacente — inclusive
-   * reconexões, ao longo de toda a vida do cliente (confirmado
-   * empiricamente contra `https.Agent`, não só contra o `undici` usado
-   * antes: o comportamento é o mesmo nos dois). Zerá-lo depois de
-   * `createSmartTokenClient` quebraria conexões futuras (confirmado
-   * empiricamente). Se a higiene desse buffer específico for uma
+   * reconexões, ao longo de toda a vida do cliente. Zerá-lo depois de
+   * `createSmartTokenClient` quebraria conexões futuras. Se a higiene
+   * desse buffer específico for uma
    * preocupação, avalie isso no seu próprio código antes de passá-lo
    * pra cá.
    */
@@ -219,13 +216,13 @@ function buildFormBody(clientId: string, assertion: string, scope: string): stri
  * Executa uma requisição HTTP(S), aplicando dois timeouts distintos
  * (RF-07): `connectTimeoutMs`, amarrado a um temporizador manual entre a
  * criação do socket e a conclusão da conexão — nem `http.Agent` nem
- * `https.Agent` têm uma opção de "connect timeout" própria (verificado
- * empiricamente: `Agent.options.timeout` é um timeout de *inatividade*
- * do socket, não uma janela de conexão) —, e `requestTimeoutMs`, via
+ * `https.Agent` têm uma opção de "connect timeout" própria
+ * (`Agent.options.timeout` é um timeout de *inatividade* do socket, não
+ * uma janela de conexão) —, e `requestTimeoutMs`, via
  * `AbortSignal.timeout` cobrindo a requisição inteira (Node aceita
- * `signal` nativamente em `http(s).request` desde a v18, confirmado
- * empiricamente: o abort produz um `AbortError` com `code: "ABORT_ERR"`,
- * não `"TimeoutError"` como o `fetch` produzia).
+ * `signal` nativamente em `http(s).request` desde a v18; o abort
+ * produz um `AbortError` com `code: "ABORT_ERR"`, não
+ * `"TimeoutError"` como o `fetch` produzia).
  *
  * Sensível ao esquema da URL: `https:` usa `node:https` com o `agent`
  * TLS/mTLS configurado; `http:` usa `node:http` sem `agent` nenhum (só
@@ -365,18 +362,6 @@ async function fetchTokenWithRetry(scope: string, ctx: ClientContext): Promise<R
 }
 
 /**
- * Cliente HubSaúde para obtenção de access tokens SMART Backend Services.
- *
- * Abstrai a montagem e assinatura do `client_assertion` JWT, a
- * comunicação HTTP com o token endpoint, cache por scope,
- * *single-flight* e retry com backoff exponencial.
- *
- * A instância é reutilizável durante o ciclo de vida da aplicação —
- * construa uma vez (via {@link createSmartTokenClient}) e chame
- * {@link close} apenas no encerramento. Não há construtor público: use
- * sempre {@link createSmartTokenClient}.
- */
-/**
  * Token de construção privado ao módulo — nunca exportado, portanto
  * impossível de obter fora deste arquivo.
  *
@@ -389,6 +374,18 @@ async function fetchTokenWithRetry(scope: string, ctx: ClientContext): Promise<R
  */
 const CONSTRUCTION_GUARD = Symbol("SmartTokenClient.constructionGuard");
 
+/**
+ * Cliente HubSaúde para obtenção de access tokens SMART Backend Services.
+ *
+ * Abstrai a montagem e assinatura do `client_assertion` JWT, a
+ * comunicação HTTP com o token endpoint, cache por scope,
+ * *single-flight* e retry com backoff exponencial.
+ *
+ * A instância é reutilizável durante o ciclo de vida da aplicação —
+ * construa uma vez (via {@link createSmartTokenClient}) e chame
+ * {@link close} apenas no encerramento. Não há construtor público: use
+ * sempre {@link createSmartTokenClient}.
+ */
 export class SmartTokenClient {
   readonly #context: ClientContext;
   readonly #tokenCache: TokenCacheStrategy;
@@ -414,11 +411,9 @@ export class SmartTokenClient {
    *   `options` (não um campo dela) exatamente para não aparecer na
    *   superfície pensada para uso normal; existe só para os testes
    *   deste repositório injetarem uma espera determinística, sem
-   *   esperar segundos reais. Equivalente ao `Sleeper` package-private
-   *   do Java — a mesma ressalva vale aqui: como qualquer restrição de
-   *   visibilidade, desencoraja uso casual/acidental, mas não é uma
-   *   barreira à prova de quem decidir contornar de propósito (assim
-   *   como o Java também não é, via reflection).
+   *   esperar segundos reais. Como qualquer restrição de visibilidade
+   *   em TypeScript, desencoraja uso casual/acidental, mas não é uma
+   *   barreira à prova de quem decidir contornar de propósito.
    * @returns o cliente pronto para uso
    * @throws {Error} se a configuração obrigatória estiver incompleta ou
    *   inconsistente (RF-18)
@@ -631,10 +626,10 @@ export class SmartTokenClient {
 /**
  * Constrói um {@link SmartTokenClient} a partir das opções informadas.
  *
- * Substitui o builder fluente do Java: função fábrica assíncrona (a
- * construção envolve I/O — leitura de PEM e, opcionalmente, descoberta
- * do endpoint via rede) recebendo um único objeto de opções. Ponto de
- * entrada recomendado — equivalente a {@link SmartTokenClient.create}.
+ * Função fábrica assíncrona (a construção envolve I/O — leitura de PEM
+ * e, opcionalmente, descoberta do endpoint via rede) recebendo um único
+ * objeto de opções. Ponto de entrada recomendado — equivalente a
+ * {@link SmartTokenClient.create}.
  *
  * @param options - configuração do cliente
  * @returns o cliente pronto para uso

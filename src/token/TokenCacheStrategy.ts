@@ -30,12 +30,17 @@ interface CachedToken {
   expiresAtMs: number;
 }
 
+/** Configuração de {@link TokenCacheStrategy}. */
 export interface TokenCacheStrategyOptions {
+  /** Se `false`, desliga o cache: toda chamada busca um token novo. Padrão `true`. */
   enabled?: boolean;
+  /** Margem em segundos para renovar token antes da expiração (padrão 30; ≤0 usa o padrão). */
   marginSeconds?: number;
+  /** Teto de entradas simultâneas no cache (LRU) — descarta a menos recentemente usada ao exceder. */
   maxEntries?: number;
-  /** Fonte de tempo, substituível para testes determinísticos (equivalente ao `Clock` do Java). */
+  /** Fonte de tempo, substituível para testes determinísticos. */
   now?: () => number;
+  /** Logger opcional; sem ele, nada é logado. */
   logger?: Logger;
 }
 
@@ -43,15 +48,13 @@ export interface TokenCacheStrategyOptions {
  * Cache de tokens por scope com deduplicação de requisições concorrentes
  * (single-flight) e janela LRU de tamanho fixo.
  *
- * Diferente do Java — que precisa de *lock striping* porque múltiplas
- * threads do SO podem competir de verdade pelo mesmo scope —, o Node
- * roda num único event loop: a deduplicação aqui é feita guardando a
- * `Promise` em voo por scope (`Map<scope, Promise>`), conforme a própria
- * especificação recomenda (§9.4) para plataformas de I/O assíncrono de
- * thread única. O "double-check" que o Java faz explicitamente dentro do
- * lock também não é necessário aqui: como nada mais executa entre a
- * checagem do cache e a criação da promessa (não há `await` nesse meio),
- * não existe janela de corrida a fechar.
+ * O Node roda num único event loop, sem threads do SO competindo pelo
+ * mesmo scope: a deduplicação aqui é feita guardando a `Promise` em voo
+ * por scope (`Map<scope, Promise>`), conforme ESPECIFICACAO.md §9.4
+ * recomenda para plataformas de I/O assíncrono de thread única.
+ * Um "double-check" explícito não é necessário: como nada mais executa
+ * entre a checagem do cache e a criação da promessa (não há `await`
+ * nesse meio), não existe janela de corrida a fechar.
  */
 export class TokenCacheStrategy {
   private readonly enabled: boolean;

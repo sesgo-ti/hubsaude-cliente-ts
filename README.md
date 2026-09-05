@@ -385,11 +385,11 @@ npm run test:coverage
 
 ### Teste de integração com o simulador local
 
-Além da suíte unitária (`test/**`, mockada, sem rede), há uma suíte de
-integração real em `it/` — sem mocks, batendo de verdade num simulador
-local do HubSaúde via mTLS, incluindo descoberta de endpoint via
-`.well-known/smart-configuration`. Fica fisicamente fora de `test/**` e
-não roda como parte de `npm test`/`npm run test:coverage`.
+Além da suíte unitária (mockada, sem rede), há uma suíte de integração
+real em `test/integration/` — sem mocks, batendo de verdade num
+simulador local do HubSaúde via mTLS, incluindo descoberta de endpoint
+via `.well-known/smart-configuration`. Excluída explicitamente do
+`npm test`/`npm run test:coverage` padrão.
 
 Requer a CLI `hubsaude`, que provisiona e gerencia o simulador como
 processo local:
@@ -420,7 +420,7 @@ simulador já em execução para outro propósito.
 
 Além do simulador local (hermético, mas ainda uma simulação), há um
 smoke test à parte que bate no ambiente real de homologação —
-`it/SmartTokenClientHomolog.test.ts`. Detecta divergências sutis entre o
+`test/integration/SmartTokenClientHomolog.test.ts`. Detecta divergências sutis entre o
 comportamento simulado e o servidor de autorização real que o simulador
 não reproduziria.
 

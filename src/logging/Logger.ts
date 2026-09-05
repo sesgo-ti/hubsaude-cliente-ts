@@ -6,14 +6,13 @@
 /**
  * Logger opcional, injetável pelo integrador (RNF-02).
  *
- * Diferente do Java (que padroniza em SLF4J), o Node não tem uma
- * infraestrutura de log única e universal — por isso a lib não escolhe
- * uma dependência de log por conta própria (`pino`, `winston`, etc.):
- * aceita um objeto no mesmo formato do `console` (todos os métodos
- * opcionais). Quando omitido, nada é logado. Cada método corresponde a um
- * nível: `debug` (cache, construção), `info` (token obtido, cache
- * invalidado), `warn` (retries, 429), `error` (falhas definitivas) —
- * mesmos níveis usados pelo SLF4J no Java.
+ * O Node não tem uma infraestrutura de log única e universal — por isso
+ * a lib não escolhe uma dependência de log por conta própria (`pino`,
+ * `winston`, etc.): aceita um objeto no mesmo formato do `console`
+ * (todos os métodos opcionais). Quando omitido, nada é logado. Cada
+ * método corresponde a um nível: `debug` (cache, construção), `info`
+ * (token obtido, cache invalidado), `warn` (retries, 429), `error`
+ * (falhas definitivas).
  */
 export interface Logger {
   debug?(message: string, meta?: Record<string, unknown>): void;

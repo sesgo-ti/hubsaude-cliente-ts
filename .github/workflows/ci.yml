@@ -19,10 +19,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Piso declarado em `engines.node` (>=20), a LTS ativa atual e a
-        # LTS mais recente — cobre quem ainda está no mínimo suportado
-        # sem deixar de validar contra o que a maioria já roda em produção.
-        node-version: ["20.x", "22.x", "24.x"]
+        # Piso declarado em `engines.node` (>=22 — Node 20 chegou ao fim
+        # de vida em abril/2026), a LTS em manutenção, a LTS ativa e a
+        # versão Current mais recente.
+        node-version: ["22.x", "24.x", "26.x"]
     steps:
       - uses: actions/checkout@v7
 

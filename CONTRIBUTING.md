@@ -70,8 +70,10 @@ licença do projeto, conforme o texto integral do DCO. Commits sem
 
 ## Padrões técnicos
 
-- **Node.js 20+** (`engines.node` do `package.json`). Build e testes via
-  **npm**.
+- **Node.js 22.18+ (ou 24.11+)** — ver `engines.node` do `package.json`
+  para o intervalo exato; o piso não é um número redondo porque
+  ferramentas de dev usadas no lint (`@babel/eslint-parser`) já exigem
+  essas versões mínimas específicas. Build e testes via **npm**.
 - **TypeScript** como linguagem de implementação; a API pública é
   consumível também a partir de JavaScript puro (ver `exports` do
   `package.json`).

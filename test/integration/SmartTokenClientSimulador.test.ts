@@ -11,11 +11,11 @@
  * de ponta a ponta (descoberta SMART, assinatura do `client_assertion`,
  * handshake mTLS e requisição HTTP reais).
  *
- * Fica fora de `test/**` de propósito (ver `vitest.config.ts`, cujo
- * `include`/`exclude` não é alterado por este arquivo) — roda apenas
- * via `npm run test:integration`, nunca como parte de `npm
- * test`/`npm run test:coverage`. Consulte o README.md (seção de testes
- * de integração) para instruções de instalação da CLI.
+ * Fica em `test/integration/`, excluído explicitamente do `include`
+ * padrão em `vitest.config.ts` — roda apenas via `npm run
+ * test:integration`, nunca como parte de `npm test`/`npm run
+ * test:coverage`. Consulte o README.md (seção de testes de
+ * integração) para instruções de instalação da CLI.
  *
  * Pula a suíte inteira, sem falhar, quando o binário `hubsaude` não
  * está disponível no PATH — mantém `npm run test:integration`
@@ -49,7 +49,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { connect as tlsConnect } from "node:tls";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createSmartTokenClient, type SmartTokenClient } from "../src/index.js";
+import { createSmartTokenClient, type SmartTokenClient } from "../../src/index.js";
 
 const SIMULATOR_PORT = 8443;
 const SIMULATOR_HOST = "localhost";
@@ -64,7 +64,7 @@ try {
   hubsaudeAvailable = false;
   console.warn(
     "CLI `hubsaude` não encontrada no PATH: pulando a suíte de integração com o " +
-      "simulador (it/SmartTokenClientSimulador.test.ts). Veja o README.md, seção de " +
+      "simulador (test/integration/SmartTokenClientSimulador.test.ts). Veja o README.md, seção de " +
       "testes de integração, para instruções de instalação.",
   );
 }

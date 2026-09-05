@@ -12,8 +12,8 @@ obtenção de tokens de acesso ao HubSaúde via
 assinatura e a troca pelo _access token_ no endpoint OAuth 2.0.
 
 O contrato comportamental está em [`ESPECIFICACAO.md`](ESPECIFICACAO.md)
-— requisitos normativos compartilhados pelo portfólio oficial de SDKs:
-Java, TypeScript/Node.js, C#/.NET e Python.
+— requisitos normativos compartilhados pelo portfólio oficial de SDKs
+do HubSaúde.
 
 ## Instalação
 
@@ -152,8 +152,7 @@ const client = await createSmartTokenClient({
 
 ### HSM via PKCS#11
 
-O Node não tem suporte nativo a PKCS#11 (diferente do JDK, que embute o
-provider `SunPKCS11`). Por isso `pkcs11js` — a lib de referência para
+O Node não tem suporte nativo a PKCS#11. Por isso `pkcs11js` — a lib de referência para
 Node.js citada na especificação compartilhada pelos SDKs (§9.2) — é uma
 **peer dependency opcional**: instale-a separadamente apenas se for usar
 HSM/token; quem não usa não paga nenhum custo de instalação (confirmado
@@ -349,11 +348,11 @@ da requisição correspondente.
 
 Aplicações já instrumentadas com auto-instrumentação OpenTelemetry para
 Node.js (ex.: `@opentelemetry/instrumentation-http`, que cobre
-`node:http`/`node:https`) devem continuar funcionando pelo mesmo motivo
-do SDK Java: a instrumentação tipicamente sobrepõe o header com o
-contexto do span ativo. **Diferente das demais afirmações deste README,
-esta não foi verificada empiricamente neste projeto** — valide na sua
-stack antes de depender disso.
+`node:http`/`node:https`) devem continuar funcionando: a instrumentação
+tipicamente sobrepõe o header com o contexto do span ativo. **Diferente
+das demais afirmações deste README, esta não foi verificada
+empiricamente neste projeto** — valide na sua stack antes de depender
+disso.
 
 ## Troubleshooting
 
@@ -366,7 +365,7 @@ stack antes de depender disso.
 | Erro de conexão com causa `ECONNREFUSED`/`ECONNRESET`/`ETIMEDOUT`                            | Firewall, endpoint incorreto, ou instabilidade de rede — a lib já tenta novamente automaticamente                                                                                                               | Verifique conectividade e URL; se persistir após todas as tentativas, veja o `traceId` na mensagem final                                  |
 
 Para diagnóstico aprofundado de **confiança de certificado SSL/TLS**
-(com snippets em Java, C#, Node.js e OpenSSL), consulte o
+(com exemplos em bash, PowerShell, Node.js e OpenSSL), consulte o
 [guia de troubleshooting TLS](docs/troubleshooting.md).
 
 Para experimentar o fluxo completo localmente sem ambiente de
@@ -485,8 +484,8 @@ atual — útil para auditoria, não gerado automaticamente em build/CI.
 
 ## Publicação de nova versão (release)
 
-Ainda não há um workflow de release equivalente ao `release.yml` do
-SDK Java neste repositório. O processo pretendido:
+Ainda não há um workflow de release automatizado neste repositório. O
+processo pretendido:
 
 ```bash
 npm version <major|minor|patch>

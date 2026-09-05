@@ -482,6 +482,19 @@ npm run sbom
 Gera `sbom.json` (formato CycloneDX) a partir da árvore de dependências
 atual — útil para auditoria, não gerado automaticamente em build/CI.
 
+### Documentação de API (TypeDoc)
+
+Ainda não configurado — **bloqueado por incompatibilidade de versão,
+não só por falta de configuração**: `typedoc@0.28.20` (a versão estável
+mais recente no momento) quebra já na inicialização contra
+`typescript@^7.0.2`
+(`TypeError: Cannot read properties of undefined (reading
+'PropertyDeclaration')`), porque declara suporte via `peerDependencies`
+só até `typescript@6.0.x`. Mesmo padrão de outras ferramentas do
+ecossistema que ainda não acompanharam essa versão do TypeScript (ver
+a limitação do `typescript-eslint` acima). Reavaliar quando o TypeDoc
+publicar uma versão com suporte a TS 7.x.
+
 ## Publicação de nova versão (release)
 
 Ainda não há um workflow de release automatizado neste repositório. O

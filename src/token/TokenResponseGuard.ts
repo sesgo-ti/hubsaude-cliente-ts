@@ -41,8 +41,8 @@ export const MAX_RESPONSE_BODY_BYTES = 1_048_576;
  * @param body - corpo da resposta já decodificado (`JSON.parse`)
  * @param logger - logger opcional; se omitido, nada é logado
  * @returns valor saneado de `expires_in`, em segundos
- * @throws {SmartTokenError} quando o valor é zero, negativo ou não
- *   numérico
+ * @throws {SmartTokenError} quando o valor é zero, negativo, booleano
+ *   ou não numérico
  */
 export function sanitizeExpiresIn(body: unknown, logger: Logger = NOOP_LOGGER): number {
   if (typeof body !== "object" || body === null || !("expires_in" in body)) {

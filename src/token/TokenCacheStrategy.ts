@@ -146,6 +146,15 @@ export class TokenCacheStrategy {
   }
 
   private store(normalizedScope: string, response: RawTokenResponse): void {
+    // Defensivo: hoje `store()` só roda depois que `cachedResponseIfValid`
+    // já removeu qualquer entrada anterior do scope (expirada) ou nunca
+    // houve uma, então `set()` sempre insere numa chave nova, que o `Map`
+    // já coloca no fim por conta própria. Mas `Map` não reordena uma
+    // chave que ainda está presente ao sobrescrevê-la com `set()` — então,
+    // se um futuro caminho de código chamar `store()` com o scope ainda
+    // vivo no cache, isto evita reintroduzir silenciosamente o mesmo bug
+    // que `cachedResponseIfValid` já precisa evitar (linhas acima).
+    this.cache.delete(normalizedScope);
     this.cache.set(normalizedScope, {
       accessToken: response.accessToken,
       expiresAtMs: this.now() + response.expiresIn * 1000,

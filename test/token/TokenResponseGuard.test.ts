@@ -20,7 +20,7 @@ describe("sanitizeExpiresIn", () => {
     expect(sanitizeExpiresIn({ expires_in: 120 })).toBe(120);
   });
 
-  it.each([0, -1, "abc", null])("rejeita expires_in inválido: %j", (value) => {
+  it.each([0, -1, "abc", null, true, false])("rejeita expires_in inválido: %j", (value) => {
     expect(() => sanitizeExpiresIn({ expires_in: value })).toThrow(SmartTokenError);
   });
 

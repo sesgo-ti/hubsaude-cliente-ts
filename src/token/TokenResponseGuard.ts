@@ -32,15 +32,17 @@ export const MAX_RESPONSE_BODY_BYTES = 1_048_576;
  * já decodificada como JSON.
  *
  * Regras: ausente → assume {@link DEFAULT_EXPIRES_IN_SECONDS} (1 hora);
- * zero, negativo ou não numérico → rejeitado; acima de
+ * zero, negativo, booleano ou não numérico → rejeitado (booleano é
+ * verificado antes da coerção porque `Number(true) === 1` faria
+ * `{"expires_in": true}` passar como 1 segundo válido); acima de
  * {@link MAX_EXPIRES_IN_SECONDS} (24h) → normalizado para o teto, com
  * aviso no logger.
  *
  * @param body - corpo da resposta já decodificado (`JSON.parse`)
  * @param logger - logger opcional; se omitido, nada é logado
  * @returns valor saneado de `expires_in`, em segundos
- * @throws {SmartTokenError} quando o valor é zero, negativo ou não
- *   numérico
+ * @throws {SmartTokenError} quando o valor é zero, negativo, booleano
+ *   ou não numérico
  */
 export function sanitizeExpiresIn(body: unknown, logger: Logger = NOOP_LOGGER): number {
   if (typeof body !== "object" || body === null || !("expires_in" in body)) {
@@ -49,6 +51,12 @@ export function sanitizeExpiresIn(body: unknown, logger: Logger = NOOP_LOGGER): 
   }
 
   const raw = (body as Record<string, unknown>).expires_in;
+  if (typeof raw === "boolean") {
+    throw new SmartTokenError(
+      `'expires_in' inválido na resposta do token endpoint: ${JSON.stringify(raw)} ` +
+        `(esperado inteiro em 0 < x <= ${MAX_EXPIRES_IN_SECONDS})`,
+    );
+  }
   const value = typeof raw === "number" ? raw : Number(raw);
   if (!Number.isFinite(value) || value <= 0) {
     throw new SmartTokenError(

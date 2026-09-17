@@ -49,7 +49,7 @@ abaixo.
 | Ecossistema        | Projeto                   | Papel                                          |
 | ------------------ | ------------------------- | ---------------------------------------------- |
 | Java               | `hubsaude-cliente-java`   | Implementação de referência                    |
-| TypeScript/Node.js | `hubsaude-cliente-js`     | SDK servidor, consumível também por JavaScript |
+| TypeScript/Node.js | `hubsaude-cliente-ts`     | SDK servidor, consumível também por JavaScript |
 | C#/.NET            | `hubsaude-cliente-csharp` | SDK para aplicações .NET                       |
 | Python             | `hubsaude-cliente-python` | SDK para aplicações e automações Python        |
 

@@ -1,0 +1,116 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22.x"
+          cache: npm
+
+      # Os testes de PKCS#11 rodam contra um HSM em software real
+      # (SoftHSM2), não mockado — mesmo setup do ci.yml.
+      - name: Instalar SoftHSM2
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y softhsm2
+          lib="$(dpkg -L libsofthsm2 | grep -m1 'libsofthsm2\.so$')"
+          test -n "$lib" || { echo "libsofthsm2.so não encontrado" >&2; exit 1; }
+          echo "SOFTHSM_LIB=$lib" >> "$GITHUB_ENV"
+
+      # Mesmo motivo do ci.yml: typescript-eslint 8.x ainda recusa
+      # carregar contra typescript@7.x, o que deixa `npm ci` sem flag
+      # adicional em ERESOLVE.
+      - name: Instalar dependências
+        run: npm ci --legacy-peer-deps
+
+      # O npm não tem um mecanismo de injetar a versão no build a partir
+      # da tag — a versão publicada é sempre a que já está commitada em
+      # package.json. A tag só existe pra disparar a release; ela precisa
+      # bater com o que já foi commitado (via `npm version`, que atualiza
+      # package.json/package-lock.json e cria a tag junto).
+      - name: Validar tag contra a versão do package.json
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "Tag ($GITHUB_REF_NAME) não bate com a versão do package.json ($PKG_VERSION)" >&2
+            exit 1
+          fi
+
+      - name: Testes
+        run: npm test
+
+      # Versão pinada de propósito (não "latest"): torna a instalação
+      # determinística entre releases e evita que uma versão nova do CLI
+      # mude comportamento sem aviso. Atualizar manualmente quando quiser
+      # adotar uma versão nova.
+      - name: Cache da CLI hubsaude e dos componentes provisionados
+        id: cache-hubsaude
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.local/bin/hubsaude
+            ~/.local/share/hubsaude
+          key: hubsaude-cli-0.3.16-${{ runner.os }}
+
+      - name: Instalar CLI hubsaude (versão pinada)
+        if: steps.cache-hubsaude.outputs.cache-hit != 'true'
+        env:
+          HUBSAUDE_CLI_VERSION: "0.3.16"
+        run: curl -fsSL https://raw.githubusercontent.com/kyriosdata/runner/main/install.sh | bash
+
+      - name: Adicionar CLI hubsaude ao PATH
+        run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      # Falha explícita, não skip silencioso: se a CLI não puder ser
+      # obtida/verificada aqui, a release para. O teste de integração em
+      # si pula a suíte silenciosamente quando `hubsaude` não está no
+      # PATH (comportamento correto para `ci.yml`/dev local, que não a
+      # instalam) — mas numa release, uma falha na infraestrutura desse
+      # teste precisa ser visível, não mascarada como "suíte pulada,
+      # tudo certo".
+      - name: Verificar CLI hubsaude
+        run: |
+          hubsaude version || {
+            echo "::error::Não foi possível obter/verificar a CLI hubsaude — abortando a release."
+            exit 1
+          }
+
+      - name: Testes de integração (simulador local)
+        run: npm run test:integration
+
+      - name: Build
+        run: npm run build
+
+      - name: Empacotar
+        run: npm pack
+
+      - name: Gerar SBOM
+        run: npm run sbom
+
+      - name: Publicar GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            ./*.tgz \
+            sbom.json \
+            --generate-notes \
+            --verify-tag
+
+      # TODO: publicar no registro npm, quando a conta/token existirem.
+      # - name: Publicar no npm
+      #   env:
+      #     NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      #   run: npm publish --provenance --access public

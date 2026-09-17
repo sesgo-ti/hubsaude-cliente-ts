@@ -97,5 +97,5 @@ provisória enquanto a API pública é estabilizada.
 - Sem modo "confiar em tudo" (_trust-all_) na API pública.
 - Fronteira entre API pública e módulos internos imposta em runtime pelo
   campo `exports` do `package.json` — um import de caminho interno
-  (ex.: `hubsaude-cliente-js/dist/token/TokenCacheStrategy.js`) é
+  (ex.: `hubsaude-cliente-ts/dist/token/TokenCacheStrategy.js`) é
   bloqueado pelo próprio Node, não apenas por convenção.

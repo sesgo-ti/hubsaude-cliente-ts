@@ -1,4 +1,4 @@
-# Como contribuir com hubsaude-cliente-js
+# Como contribuir com hubsaude-cliente-ts
 
 Obrigado pelo interesse em contribuir! Este documento descreve o processo
 padronizado de contribuição para o SDK TypeScript/Node.js do HubSaúde.

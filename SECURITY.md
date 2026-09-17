@@ -1,4 +1,4 @@
-# Política de Segurança — hubsaude-cliente-js
+# Política de Segurança — hubsaude-cliente-ts
 
 ## Versões suportadas
 
@@ -39,7 +39,7 @@ Caso não use o GitHub, envie para:
 
 **`<e-mail de contato de segurança a definir>`**
 
-> Este canal ainda não foi confirmado para `hubsaude-cliente-js`. Não
+> Este canal ainda não foi confirmado para `hubsaude-cliente-ts`. Não
 > copie o contato usado por outro projeto do mesmo portfólio sem validar
 > antes que é o mesmo canal monitorado para esta lib — atualize esta
 > seção assim que o contato correto for definido.
@@ -72,7 +72,7 @@ anonimato.
 ## Escopo
 
 Este documento cobre o pacote publicado no registro npm como
-`hubsaude-cliente-js`, incluindo todo o código distribuído em `dist/`
+`hubsaude-cliente-ts`, incluindo todo o código distribuído em `dist/`
 (ver o campo `files` do `package.json`).
 
 Dependências de terceiros usadas apenas em desenvolvimento (lint, testes,

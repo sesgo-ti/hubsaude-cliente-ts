@@ -1,5 +1,5 @@
 {
-  "name": "hubsaude-cliente-js",
+  "name": "hubsaude-cliente-ts",
   "version": "0.1.0",
   "description": "Cliente TypeScript/Node.js para obtenção de tokens de acesso ao HubSaúde via SMART Backend Services (SMART-on-FHIR). Consumível também por JavaScript puro.",
   "type": "module",

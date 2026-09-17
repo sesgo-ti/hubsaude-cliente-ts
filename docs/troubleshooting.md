@@ -1,7 +1,7 @@
 # Guia de troubleshooting — TLS/mTLS e erros comuns
 
 Este guia é direcionado ao desenvolvedor que está integrando
-`hubsaude-cliente-js` com o HubSaúde, em https://hub.saude.go.gov.br.
+`hubsaude-cliente-ts` com o HubSaúde, em https://hub.saude.go.gov.br.
 
 > **Nota:** o host `hub.saude.go.gov.br` é **ilustrativo** (o mesmo dos
 > exemplos do [README](../README.md)); use o endpoint informado no seu
@@ -163,7 +163,7 @@ vez de depender deste workaround de forma permanente.
 
 | Sintoma                                                        | Causa provável                                                               | Solução                                                                                                 |
 | -------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Erro ao importar `pkcs11js`, ou `fromPkcs11` indisponível      | `pkcs11js` não instalado — é uma _peer dependency_ opcional                  | `npm install pkcs11js` além de `hubsaude-cliente-js`                                                    |
+| Erro ao importar `pkcs11js`, ou `fromPkcs11` indisponível      | `pkcs11js` não instalado — é uma _peer dependency_ opcional                  | `npm install pkcs11js` além de `hubsaude-cliente-ts`                                                    |
 | Falha ao abrir sessão/PIN rejeitado, na chamada a `fromPkcs11` | PIN incorreto, slot/label errado, ou módulo PKCS#11 (`library`) incompatível | Confira `tokenLabel`/`slot` com a ferramenta do fabricante (ex.: `pkcs11-tool --list-slots`)            |
 | Chave não encontrada                                           | `keyLabel`/`keyId` não correspondem a nenhuma chave no token                 | Ao menos um dos dois é obrigatório; confira `CKA_LABEL`/`CKA_ID` reais com `pkcs11-tool --list-objects` |
 

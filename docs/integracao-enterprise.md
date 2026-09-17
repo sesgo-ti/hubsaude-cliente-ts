@@ -1,6 +1,6 @@
 # Integração enterprise
 
-Este guia complementa o contrato da API do `hubsaude-cliente-js` com
+Este guia complementa o contrato da API do `hubsaude-cliente-ts` com
 decisões de integração que pertencem à aplicação consumidora. O SDK não
 depende de nenhum framework de aplicação, biblioteca de resiliência,
 sistema de métricas ou SDK de tracing — as seções abaixo mostram como
@@ -28,7 +28,7 @@ proprietária da instância e deve fechá-la durante o encerramento:
 Em uma aplicação Node "pura", associe o fechamento a um handler de sinal:
 
 ```ts
-import { createSmartTokenClient } from "hubsaude-cliente-js";
+import { createSmartTokenClient } from "hubsaude-cliente-ts";
 
 const client = await createSmartTokenClient({
   tokenEndpoint,

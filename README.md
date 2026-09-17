@@ -1,4 +1,4 @@
-# hubsaude-cliente-js
+# hubsaude-cliente-ts
 
 [![Version](https://img.shields.io/badge/Version-0.1.0-yellow)](CHANGELOG.md)
 [![Node.js 22.18+](https://img.shields.io/badge/Node.js-22.18%2B-339933)](https://nodejs.org/)
@@ -18,7 +18,7 @@ do HubSaúde.
 ## Instalação
 
 ```bash
-npm install hubsaude-cliente-js
+npm install hubsaude-cliente-ts
 ```
 
 `0.1.0` é uma versão de desenvolvimento — a série `0.x` é provisória (ver
@@ -35,9 +35,9 @@ estritamente o
 [Versionamento Semântico 2.0.0](https://semver.org/lang/pt-BR/).
 
 Todos os tipos e funções reexportados pelo ponto de entrada do pacote
-(`import ... from "hubsaude-cliente-js"`, ver o campo `exports` do
+(`import ... from "hubsaude-cliente-ts"`, ver o campo `exports` do
 `package.json`) integram a API pública. Qualquer caminho de import mais
-profundo (ex.: `hubsaude-cliente-js/dist/token/TokenCacheStrategy.js`) é
+profundo (ex.: `hubsaude-cliente-ts/dist/token/TokenCacheStrategy.js`) é
 bloqueado pelo próprio Node em runtime — não é só uma convenção de
 organização de pastas. A criação de `SmartTokenClient` é feita
 **exclusivamente** por `createSmartTokenClient(options)`; a classe não
@@ -47,7 +47,7 @@ runtime.
 ## Uso básico
 
 ```ts
-import { createSmartTokenClient } from "hubsaude-cliente-js";
+import { createSmartTokenClient } from "hubsaude-cliente-ts";
 
 const client = await createSmartTokenClient({
   tokenEndpoint: "https://hub.saude.go.gov.br/auth/token",
@@ -136,7 +136,7 @@ passam por esta validação — a política de tamanho fica a cargo da fonte.
 
 ```ts
 import { readFile } from "node:fs/promises";
-import { createSmartTokenClient, fromPkcs12 } from "hubsaude-cliente-js";
+import { createSmartTokenClient, fromPkcs12 } from "hubsaude-cliente-ts";
 
 const pfx = await readFile("certificado.pfx");
 
@@ -160,11 +160,11 @@ empiricamente — sem ela, o `npm install` não baixa nem tenta compilar
 nada):
 
 ```bash
-npm install hubsaude-cliente-js pkcs11js
+npm install hubsaude-cliente-ts pkcs11js
 ```
 
 ```ts
-import { createSmartTokenClient, fromPkcs11 } from "hubsaude-cliente-js";
+import { createSmartTokenClient, fromPkcs11 } from "hubsaude-cliente-ts";
 
 const signingStrategy = await fromPkcs11({
   library: "/usr/lib/softhsm/libsofthsm2.so", // módulo PKCS#11 do fabricante
@@ -203,7 +203,7 @@ dedicado, API de KMS em nuvem), continua podendo fornecer sua própria
 
 ```ts
 import { createPrivateKey } from "node:crypto";
-import { createSmartTokenClient, fromPrivateKey } from "hubsaude-cliente-js";
+import { createSmartTokenClient, fromPrivateKey } from "hubsaude-cliente-ts";
 
 const pem = await baoClient.getPrivateKey("secret/data/hubsaude/key");
 const signingStrategy = fromPrivateKey(createPrivateKey(pem));

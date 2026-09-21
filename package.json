@@ -49,7 +49,7 @@
   "license": "Apache-2.0",
   "author": "Estado de Goiás (SES-GO) e Universidade Federal de Goiás (UFG)",
   "devDependencies": {
-    "@babel/core": "^8.0.1",
+    "@babel/core": "^8.0.5",
     "@babel/eslint-parser": "^8.0.5",
     "@babel/preset-typescript": "^8.0.1",
     "@cyclonedx/cyclonedx-npm": "^6.0.1",

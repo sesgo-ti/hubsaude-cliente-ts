@@ -1,6 +1,6 @@
 # Guia de troubleshooting — TLS/mTLS e erros comuns
 
-Este guia é direcionado ao desenvolvedor que está integrando
+Este guia é direcionado ao integrador que está integrando
 `hubsaude-cliente-ts` com o HubSaúde, em https://hub.saude.go.gov.br.
 
 > **Nota:** o host `hub.saude.go.gov.br` é **ilustrativo** (o mesmo dos

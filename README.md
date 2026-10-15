@@ -150,6 +150,20 @@ const client = await createSmartTokenClient({
 });
 ```
 
+O `clientPfx` é repassado diretamente ao parser PKCS#12 nativo do Node
+(usado só para mTLS; a assinatura acima decodifica o mesmo arquivo de
+outra forma e não tem essa restrição). Por isso, um arquivo `.pfx`
+criptografado com um algoritmo legado (ex.: RC2-40, comum em
+certificados mais antigos) falha com `Unsupported PKCS12 PFX data` ao
+construir o cliente, mesmo que a assinatura do JWT funcione normalmente
+com o mesmo arquivo. Para corrigir, gere uma cópia em formato atual, por
+exemplo com o OpenSSL:
+
+```bash
+openssl pkcs12 -in certificado.pfx -legacy -out intermediario.pem
+openssl pkcs12 -export -in intermediario.pem -out certificado-novo.pfx
+```
+
 ### HSM via PKCS#11
 
 O Node não tem suporte nativo a PKCS#11. Por isso `pkcs11js` — a lib de referência para

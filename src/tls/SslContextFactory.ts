@@ -5,7 +5,7 @@
 
 import type { KeyObject, X509Certificate } from "node:crypto";
 import { Agent as HttpsAgent, type AgentOptions } from "node:https";
-import type { SecureVersion } from "node:tls";
+import { createSecureContext, type SecureVersion } from "node:tls";
 import { SmartTokenError } from "../errors/SmartTokenError.js";
 
 /** Protocolo TLS padrão utilizado quando nenhum é especificado. */
@@ -27,7 +27,10 @@ export const DEFAULT_TLS_PROTOCOL: SecureVersion = "TLSv1.3";
  *   `clientKey`)
  * @property clientPfx - alternativa a `clientKey`/`clientCertificate`:
  *   contêiner PKCS#12/PFX completo, repassado diretamente ao Node (não
- *   precisa de extração — só a assinatura do JWT precisa disso)
+ *   precisa de extração — só a assinatura do JWT precisa disso). O Node
+ *   usa o parser PKCS#12 nativo (OpenSSL), que não aceita arquivos num
+ *   formato legado (ex.: criptografado com RC2-40); veja
+ *   {@link buildAgent} para o comportamento nesse caso
  * @property clientPfxPassphrase - senha do `clientPfx`
  * @property tlsProtocol - versão mínima do TLS (padrão
  *   {@link DEFAULT_TLS_PROTOCOL})
@@ -55,6 +58,45 @@ function toPemKey(value: KeyObject | string | Buffer): string | Buffer {
 }
 
 /**
+ * Código de erro que o Node usa quando o PKCS#12 foi criptografado com
+ * um algoritmo que o OpenSSL 3 não aceita mais sem configuração extra
+ * (ex.: RC2-40, comum em arquivos gerados por ferramentas mais antigas).
+ */
+const UNSUPPORTED_PKCS12_ERROR_CODE = "ERR_CRYPTO_UNSUPPORTED_OPERATION";
+
+/**
+ * Valida antecipadamente que `clientPfx` pode ser decodificado pelo Node
+ * (fail-fast, mesmo espírito de {@link checkCertificateValidity}),
+ * convertendo o erro nativo genérico numa mensagem que identifica a
+ * causa real quando ela é conhecida: um PKCS#12 em formato legado.
+ *
+ * Diferente da assinatura (`loadPkcs12` em `SigningStrategyFactory.ts`,
+ * que decodifica o PKCS#12 com `node-forge` e por isso não depende do
+ * OpenSSL do Node), o mTLS usa o parser nativo do `node:tls`: por isso
+ * o mesmo arquivo pode funcionar para assinatura e falhar aqui.
+ *
+ * @throws {SmartTokenError} se o arquivo estiver num formato PKCS#12
+ *   não suportado pelo OpenSSL 3 (ex.: criptografado com RC2-40)
+ */
+function validatePfxFormat(pfx: Buffer, passphrase: string | undefined): void {
+  try {
+    createSecureContext({ pfx, passphrase });
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== UNSUPPORTED_PKCS12_ERROR_CODE) {
+      throw err; // outra causa (senha incorreta, arquivo corrompido): mensagem nativa já é clara
+    }
+    throw new SmartTokenError(
+      "clientPfx está num formato PKCS#12 legado (ex.: criptografado com RC2-40), que o Node não " +
+        "aceita para mTLS sem configuração adicional. Gere uma cópia em formato atual, por exemplo " +
+        "com o OpenSSL: `openssl pkcs12 -in arquivo.pfx -legacy -out intermediario.pem` seguido de " +
+        "`openssl pkcs12 -export -in intermediario.pem -out novo.pfx` (usa as mesmas senhas de " +
+        "entrada e saída do arquivo original).",
+      err,
+    );
+  }
+}
+
+/**
  * Constrói um `https.Agent` (nativo do Node) configurado com o material
  * TLS/mTLS fornecido, pronto para ser passado como `agent` em
  * `https.request`.
@@ -76,6 +118,9 @@ function toPemKey(value: KeyObject | string | Buffer): string | Buffer {
  *   fornecidos simultaneamente (precondição de configuração violada,
  *   não falha de parsing/protocolo — mesma categoria das checagens de
  *   exclusividade mútua em `SmartTokenClient.create`)
+ * @throws {SmartTokenError} se `clientPfx` estiver num formato PKCS#12
+ *   não suportado pelo Node (ex.: criptografado com RC2-40); ver
+ *   {@link TlsMaterial.clientPfx}
  */
 export function buildAgent(material: TlsMaterial): HttpsAgent {
   const hasPfx = material.clientPfx !== undefined;
@@ -95,6 +140,7 @@ export function buildAgent(material: TlsMaterial): HttpsAgent {
   }
 
   if (hasPfx) {
+    validatePfxFormat(material.clientPfx as Buffer, material.clientPfxPassphrase);
     options.pfx = material.clientPfx;
     options.passphrase = material.clientPfxPassphrase;
   } else if (material.clientKey !== undefined && material.clientCertificate !== undefined) {

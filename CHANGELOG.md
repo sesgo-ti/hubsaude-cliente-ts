@@ -7,6 +7,13 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Unreleased]
 
+### Corrigido
+
+- `clientPfx` com um arquivo PKCS#12 em formato legado (ex.:
+  criptografado com RC2-40) agora falha com `SmartTokenError` e
+  orientação de como converter o arquivo, em vez do erro nativo e
+  pouco claro `Unsupported PKCS12 PFX data` do Node.
+
 ## [0.1.0] - 2026-09-03
 
 Primeira versão funcional do SDK. Ainda não publicada no registro npm

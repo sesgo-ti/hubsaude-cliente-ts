@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { createPrivateKey } from "node:crypto";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import type { IncomingMessage } from "node:http";
 import { createServer, request, type Agent, type Server } from "node:https";
 import type { SecureVersion, TLSSocket } from "node:tls";
@@ -248,6 +248,111 @@ describe("buildAgent", () => {
 
   it("usa TLSv1.3 como protocolo padrão", () => {
     expect(DEFAULT_TLS_PROTOCOL).toBe("TLSv1.3");
+  });
+
+  it("lança SmartTokenError com orientação clara para clientPfx em formato PKCS#12 legado (RC2-40)", async () => {
+    openssl([
+      "req",
+      "-x509",
+      "-newkey",
+      "rsa:2048",
+      "-keyout",
+      p("legado-key.pem"),
+      "-out",
+      p("legado-cert.pem"),
+      "-days",
+      "1",
+      "-noenc",
+      "-subj",
+      "/CN=legado",
+    ]);
+    openssl([
+      "pkcs12",
+      "-export",
+      "-legacy",
+      "-inkey",
+      p("legado-key.pem"),
+      "-in",
+      p("legado-cert.pem"),
+      "-out",
+      p("legado.pfx"),
+      "-passout",
+      "pass:1234",
+    ]);
+
+    const legadoPfx = await readFile(p("legado.pfx"));
+    expect(() => buildAgent({ clientPfx: legadoPfx, clientPfxPassphrase: "1234" })).toThrow(
+      expect.objectContaining({ message: expect.stringContaining("formato PKCS#12 legado") }),
+    );
+  });
+
+  it("propaga a mensagem nativa do Node quando o clientPfx tem senha incorreta (não reclassifica)", async () => {
+    openssl([
+      "req",
+      "-x509",
+      "-newkey",
+      "rsa:2048",
+      "-keyout",
+      p("senha-key.pem"),
+      "-out",
+      p("senha-cert.pem"),
+      "-days",
+      "1",
+      "-noenc",
+      "-subj",
+      "/CN=senha",
+    ]);
+    openssl([
+      "pkcs12",
+      "-export",
+      "-inkey",
+      p("senha-key.pem"),
+      "-in",
+      p("senha-cert.pem"),
+      "-out",
+      p("senha.pfx"),
+      "-passout",
+      "pass:correta",
+    ]);
+
+    const senhaPfx = await readFile(p("senha.pfx"));
+    expect(() => buildAgent({ clientPfx: senhaPfx, clientPfxPassphrase: "incorreta" })).not.toThrow(
+      expect.objectContaining({ message: expect.stringContaining("formato PKCS#12 legado") }),
+    );
+  });
+
+  it("realiza mTLS com sucesso usando clientPfx em formato atual", async () => {
+    const { caPem, serverStarted } = await setupCaAndServer();
+    await serverStarted;
+    const { keyPem, certPem } = await generateClientCert("cliente-pfx");
+    await writeFile(p("cliente-pfx-key.pem"), keyPem);
+    await writeFile(p("cliente-pfx-cert.pem"), certPem);
+    openssl([
+      "pkcs12",
+      "-export",
+      "-inkey",
+      p("cliente-pfx-key.pem"),
+      "-in",
+      p("cliente-pfx-cert.pem"),
+      "-out",
+      p("cliente-pfx.pfx"),
+      "-passout",
+      "pass:1234",
+    ]);
+
+    const agent = buildAgent({
+      serverTrustAnchor: caPem,
+      clientPfx: await readFile(p("cliente-pfx.pfx")),
+      clientPfxPassphrase: "1234",
+    });
+    try {
+      const { status, body } = await getViaAgent(agent);
+      const parsed = JSON.parse(body) as { clientCN: string };
+      expect(status).toBe(200);
+      expect(parsed.clientCN).toBe("cliente-pfx");
+    } finally {
+      agent.destroy();
+    }
   });
 
   it("propaga o erro nativo do Node para tlsProtocol inválido, na conexão (não na construção do Agent)", () => {

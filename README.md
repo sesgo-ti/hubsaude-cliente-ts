@@ -1,6 +1,6 @@
 # hubsaude-cliente-ts
 
-[![Version](https://img.shields.io/badge/Version-0.1.0-yellow)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-0.1.1-yellow)](CHANGELOG.md)
 [![Node.js 22.18+](https://img.shields.io/badge/Node.js-22.18%2B-339933)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-7.x-3178C6)](https://www.typescriptlang.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
@@ -21,7 +21,7 @@ do HubSaúde.
 npm install hubsaude-cliente-ts
 ```
 
-`0.1.0` é uma versão de desenvolvimento — a série `0.x` é provisória (ver
+`0.1.1` é uma versão de desenvolvimento — a série `0.x` é provisória (ver
 seção abaixo) e o pacote ainda não foi publicado no registro npm público.
 Até a primeira publicação, instale a partir de um tarball gerado por
 `npm pack` neste repositório, ou aponte para o Git diretamente.

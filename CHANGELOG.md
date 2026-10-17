@@ -7,6 +7,8 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-17
+
 ### Corrigido
 
 - `clientPfx` com um arquivo PKCS#12 em formato legado (ex.:
@@ -14,7 +16,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   orientação de como converter o arquivo, em vez do erro nativo e
   pouco claro `Unsupported PKCS12 PFX data` do Node.
 
-## [0.1.0] - 2026-09-03
+## [0.1.0] - 2026-09-21
 
 Primeira versão funcional do SDK. Ainda não publicada no registro npm
 público (ver [README](README.md#instalação)) — a série `0.x` é

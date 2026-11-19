@@ -68,8 +68,7 @@ jobs:
         if: steps.cache-hubsaude.outputs.cache-hit != 'true'
         env:
           HUBSAUDE_CLI_VERSION: "0.3.16"
-          # SHA-256 do asset hubsaude-linux-amd64 (checksums.txt da release
-          # hubsaude-cli-v0.3.16 em sesgo-ti/hubsaude). Atualizar junto com a versão.
+          # Valor do checksums.txt da release; atualizar junto com a versão.
           HUBSAUDE_CLI_SHA256: "34db814dc004efa44ff11fff60ed770cc7cbc721b6c8fbe164cd4b7d350beec3"
         run: |
           url="https://github.com/sesgo-ti/hubsaude/releases/download/hubsaude-cli-v${HUBSAUDE_CLI_VERSION}/hubsaude-linux-amd64"

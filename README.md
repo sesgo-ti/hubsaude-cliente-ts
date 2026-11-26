@@ -409,7 +409,7 @@ Requer a CLI `hubsaude`, que provisiona e gerencia o simulador como
 processo local:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/kyriosdata/runner/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/sesgo-ti/hubsaude/main/install.sh | bash
 ```
 
 Instala o binário em `~/.local/bin` (sem `sudo`). Confirme com:
